@@ -15,13 +15,15 @@ $(shell mkdir -p $(OBJ_DIR) $(BIN_DIR))
 
 # קבצי מקור
 MAIN_SRC = $(SRC_DIR)/main.cpp
-TEST_SRC = $(TEST_DIR)/GameTest.cpp $(TEST_DIR)/PlayerTest.cpp $(TEST_DIR)/RolesTest.cpp $(TEST_DIR)/EdgeCaseTest.cpp $(TEST_DIR)/IntegrationTest.cpp
+# הקובץ עם ה-DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN חייב להופיע ראשון
+TEST_SRC = $(TEST_DIR)/EdgeCaseTest.cpp $(TEST_DIR)/GameTest.cpp $(TEST_DIR)/PlayerTest.cpp $(TEST_DIR)/RolesTest.cpp $(TEST_DIR)/IntegrationTest.cpp
 
 # קבצי אובייקט
 SRC_OBJ = $(OBJ_DIR)/Player.o $(OBJ_DIR)/Game.o
 ROLE_OBJ = $(OBJ_DIR)/Baron.o $(OBJ_DIR)/General.o $(OBJ_DIR)/Governor.o $(OBJ_DIR)/Judge.o $(OBJ_DIR)/Merchant.o $(OBJ_DIR)/Spy.o
 MAIN_OBJ = $(OBJ_DIR)/main.o
-TEST_OBJ = $(OBJ_DIR)/TestMain.o $(OBJ_DIR)/GameTest.o $(OBJ_DIR)/PlayerTest.o $(OBJ_DIR)/RolesTest.o
+# EdgeCaseTest.o חייב להופיע ראשון כי הוא מכיל את ה-main
+TEST_OBJ = $(OBJ_DIR)/EdgeCaseTest.o $(OBJ_DIR)/GameTest.o $(OBJ_DIR)/PlayerTest.o $(OBJ_DIR)/RolesTest.o $(OBJ_DIR)/IntegrationTest.o
 
 # יעדים
 all: Main test
