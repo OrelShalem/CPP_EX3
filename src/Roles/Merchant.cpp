@@ -18,9 +18,11 @@ namespace coup
             throw InvalidOperation("Merchant is blocked from economic actions");
         }
 
+        bool had_three_coins = coins_ >= 3;
+
         addCoins(1);
 
-        if (coins_ >= 3)
+        if (had_three_coins)
         {
             addCoins(1);
         }
