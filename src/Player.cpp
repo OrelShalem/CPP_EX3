@@ -10,7 +10,6 @@ namespace coup
         : game_(game), name_(name), coins_(0), active_(true), blocked_from_economic_(false),
           blocked_from_arrest_(false), last_action_(""), last_target_("")
     {
-        game.addPlayer(shared_ptr<Player>(this));
     }
 
     void Player::gather()

@@ -15,7 +15,7 @@ $(shell mkdir -p $(OBJ_DIR) $(BIN_DIR))
 
 # קבצי מקור
 MAIN_SRC = $(SRC_DIR)/main.cpp
-TEST_SRC = $(TEST_DIR)/TestMain.cpp $(TEST_DIR)/GameTest.cpp $(TEST_DIR)/PlayerTest.cpp $(TEST_DIR)/RolesTest.cpp
+TEST_SRC = $(TEST_DIR)/GameTest.cpp $(TEST_DIR)/PlayerTest.cpp $(TEST_DIR)/RolesTest.cpp $(TEST_DIR)/EdgeCaseTest.cpp $(TEST_DIR)/IntegrationTest.cpp
 
 # קבצי אובייקט
 SRC_OBJ = $(OBJ_DIR)/Player.o $(OBJ_DIR)/Game.o

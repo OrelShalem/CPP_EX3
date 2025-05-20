@@ -36,12 +36,12 @@ int main()
     Game game;
 
     // Create players with different roles
-    General general{game, "Dan"};
-    Merchant merchant{game, "Ron"};
-    Governor governor{game, "Liat"};
-    Spy spy{game, "Noa"};
-    Baron baron{game, "Amit"};
-    Judge judge{game, "Michal"};
+    auto general = game.createPlayer<General>("Dan");
+    auto merchant = game.createPlayer<Merchant>("Ron");
+    auto governor = game.createPlayer<Governor>("Liat");
+    auto spy = game.createPlayer<Spy>("Noa");
+    auto baron = game.createPlayer<Baron>("Amit");
+    auto judge = game.createPlayer<Judge>("Michal");
 
     cout << "Game starts with 6 players!" << endl;
 
@@ -49,100 +49,100 @@ int main()
     {
         // First round - each player gathers coins
         printGameStatus(game);
-        general.gather();
-        cout << "Dan (General) gathered a coin. Coins: " << general.coins() << endl;
+        general->gather();
+        cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
 
         printGameStatus(game);
-        merchant.gather();
-        cout << "Ron (Merchant) gathered a coin. Coins: " << merchant.coins() << endl;
+        merchant->gather();
+        cout << "Ron (Merchant) gathered a coin. Coins: " << merchant->coins() << endl;
 
         printGameStatus(game);
-        governor.gather();
-        cout << "Liat (Governor) gathered a coin. Coins: " << governor.coins() << endl;
+        governor->gather();
+        cout << "Liat (Governor) gathered a coin. Coins: " << governor->coins() << endl;
 
         printGameStatus(game);
-        spy.gather();
-        cout << "Noa (Spy) gathered a coin. Coins: " << spy.coins() << endl;
+        spy->gather();
+        cout << "Noa (Spy) gathered a coin. Coins: " << spy->coins() << endl;
 
         printGameStatus(game);
-        baron.gather();
-        cout << "Amit (Baron) gathered a coin. Coins: " << baron.coins() << endl;
+        baron->gather();
+        cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
 
         printGameStatus(game);
-        judge.gather();
-        cout << "Michal (Judge) gathered a coin. Coins: " << judge.coins() << endl;
+        judge->gather();
+        cout << "Michal (Judge) gathered a coin. Coins: " << judge->coins() << endl;
 
         // Second round - using special abilities
         printGameStatus(game);
-        general.tax(); // General takes 3 coins as tax
-        cout << "Dan (General) took tax. Coins: " << general.coins() << endl;
+        general->tax(); // General takes 3 coins as tax
+        cout << "Dan (General) took tax. Coins: " << general->coins() << endl;
 
         printGameStatus(game);
-        merchant.bribe(); // Merchant takes 2 coins as bribe
-        cout << "Ron (Merchant) took bribe. Coins: " << merchant.coins() << endl;
+        merchant->bribe(); // Merchant takes 2 coins as bribe
+        cout << "Ron (Merchant) took bribe. Coins: " << merchant->coins() << endl;
 
         printGameStatus(game);
-        governor.gather(); // Governor gathers coins
-        cout << "Liat (Governor) gathered a coin. Coins: " << governor.coins() << endl;
+        governor->gather(); // Governor gathers coins
+        cout << "Liat (Governor) gathered a coin. Coins: " << governor->coins() << endl;
 
         printGameStatus(game);
-        spy.arrest(governor); // Spy arrests the Governor (this already calls governor.react_to_arrest() internally)
+        spy->arrest(*governor); // Spy arrests the Governor (this already calls governor.react_to_arrest() internally)
         cout << "Noa (Spy) arrested Liat (Governor)" << endl;
 
         printGameStatus(game);
-        baron.gather(); // Baron gathers a coin instead of sanction (not enough coins for sanction)
-        cout << "Amit (Baron) gathered a coin. Coins: " << baron.coins() << endl;
+        baron->gather(); // Baron gathers a coin instead of sanction (not enough coins for sanction)
+        cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
 
         printGameStatus(game);
-        judge.gather();
-        cout << "Michal (Judge) gathered a coin. Coins: " << judge.coins() << endl;
+        judge->gather();
+        cout << "Michal (Judge) gathered a coin. Coins: " << judge->coins() << endl;
 
         // Third round
         printGameStatus(game);
-        general.gather();
-        cout << "Dan (General) gathered a coin. Coins: " << general.coins() << endl;
+        general->gather();
+        cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
 
         printGameStatus(game);
-        merchant.tax(); // Merchant tries to take tax despite the sanction
-        cout << "Ron (Merchant) took tax despite the sanction. Coins: " << merchant.coins() << endl;
+        merchant->tax(); // Merchant tries to take tax despite the sanction
+        cout << "Ron (Merchant) took tax despite the sanction. Coins: " << merchant->coins() << endl;
 
         printGameStatus(game);
-        governor.gather(); // Governor's turn - gathering a coin
-        cout << "Liat (Governor) gathered a coin. Coins: " << governor.coins() << endl;
+        governor->gather(); // Governor's turn - gathering a coin
+        cout << "Liat (Governor) gathered a coin. Coins: " << governor->coins() << endl;
 
         printGameStatus(game);
-        spy.gather();
-        cout << "Noa (Spy) gathered a coin. Coins: " << spy.coins() << endl;
+        spy->gather();
+        cout << "Noa (Spy) gathered a coin. Coins: " << spy->coins() << endl;
 
         printGameStatus(game);
-        baron.gather();
-        cout << "Amit (Baron) gathered a coin. Coins: " << baron.coins() << endl;
+        baron->gather();
+        cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
 
         printGameStatus(game);
-        judge.gather();
-        cout << "Michal (Judge) gathered a coin. Coins: " << judge.coins() << endl;
+        judge->gather();
+        cout << "Michal (Judge) gathered a coin. Coins: " << judge->coins() << endl;
 
         // One more round
         printGameStatus(game);
-        general.gather();
-        cout << "Dan (General) gathered a coin. Coins: " << general.coins() << endl;
+        general->gather();
+        cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
 
         printGameStatus(game);
         // Check if merchant has enough coins for coup
-        if (merchant.coins() >= 7)
+        if (merchant->coins() >= 7)
         {
-            merchant.coup(spy); // Merchant performs coup on Spy
+            merchant->coup(*spy); // Merchant performs coup on Spy
             cout << "Ron (Merchant) performed coup on Noa (Spy)" << endl;
         }
         else
         {
-            merchant.gather();
-            cout << "Ron (Merchant) gathered a coin. Coins: " << merchant.coins() << endl;
+            merchant->gather();
+            cout << "Ron (Merchant) gathered a coin. Coins: " << merchant->coins() << endl;
         }
 
         printGameStatus(game);
-        governor.gather();
-        cout << "Liat (Governor) gathered a coin. Coins: " << governor.coins() << endl;
+        governor->gather();
+        cout << "Liat (Governor) gathered a coin. Coins: " << governor->coins() << endl;
 
         // At this point, merchant might have performed a coup on Spy
         // Continue with players who are still active
@@ -151,8 +151,8 @@ int main()
         {
             if (game.isPlayerActive("Noa"))
             {
-                spy.gather();
-                cout << "Noa (Spy) gathered a coin. Coins: " << spy.coins() << endl;
+                spy->gather();
+                cout << "Noa (Spy) gathered a coin. Coins: " << spy->coins() << endl;
             }
         }
         catch (const exception &e)
@@ -161,24 +161,24 @@ int main()
         }
 
         printGameStatus(game);
-        baron.gather();
-        cout << "Amit (Baron) gathered a coin. Coins: " << baron.coins() << endl;
+        baron->gather();
+        cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
 
         printGameStatus(game);
-        judge.gather();
-        cout << "Michal (Judge) gathered a coin. Coins: " << judge.coins() << endl;
+        judge->gather();
+        cout << "Michal (Judge) gathered a coin. Coins: " << judge->coins() << endl;
 
         // Display coin status before continuing
         cout << "\n--- Coin status before final rounds ---" << endl;
-        cout << "Dan (General): " << general.coins() << " coins" << endl;
-        cout << "Ron (Merchant): " << merchant.coins() << " coins" << endl;
-        cout << "Liat (Governor): " << governor.coins() << " coins" << endl;
+        cout << "Dan (General): " << general->coins() << " coins" << endl;
+        cout << "Ron (Merchant): " << merchant->coins() << " coins" << endl;
+        cout << "Liat (Governor): " << governor->coins() << " coins" << endl;
         if (game.isPlayerActive("Noa"))
         {
-            cout << "Noa (Spy): " << spy.coins() << " coins" << endl;
+            cout << "Noa (Spy): " << spy->coins() << " coins" << endl;
         }
-        cout << "Amit (Baron): " << baron.coins() << " coins" << endl;
-        cout << "Michal (Judge): " << judge.coins() << " coins" << endl;
+        cout << "Amit (Baron): " << baron->coins() << " coins" << endl;
+        cout << "Michal (Judge): " << judge->coins() << " coins" << endl;
 
         // Continue playing until we have a winner
         cout << "\n--- Continuing game until only one player remains ---" << endl;
@@ -192,162 +192,162 @@ int main()
             // Determine the current player and perform their action
             if (current_player == "Dan")
             {
-                if (general.coins() >= 7)
+                if (general->coins() >= 7)
                 {
                     // Enough coins for coup - find someone to coup
                     if (game.isPlayerActive("Amit"))
                     {
-                        general.coup(baron);
+                        general->coup(*baron);
                         cout << "Dan (General) performed coup on Amit (Baron)" << endl;
                     }
                     else if (game.isPlayerActive("Michal"))
                     {
-                        general.coup(judge);
+                        general->coup(*judge);
                         cout << "Dan (General) performed coup on Michal (Judge)" << endl;
                     }
                     else if (game.isPlayerActive("Liat"))
                     {
-                        general.coup(governor);
+                        general->coup(*governor);
                         cout << "Dan (General) performed coup on Liat (Governor)" << endl;
                     }
                     else if (game.isPlayerActive("Ron"))
                     {
-                        general.coup(merchant);
+                        general->coup(*merchant);
                         cout << "Dan (General) performed coup on Ron (Merchant)" << endl;
                     }
                 }
                 else
                 {
-                    general.gather();
-                    cout << "Dan (General) gathered a coin. Coins: " << general.coins() << endl;
+                    general->gather();
+                    cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
                 }
             }
             else if (current_player == "Ron")
             {
-                if (merchant.coins() >= 7)
+                if (merchant->coins() >= 7)
                 {
                     // Enough coins for coup
                     if (game.isPlayerActive("Amit"))
                     {
-                        merchant.coup(baron);
+                        merchant->coup(*baron);
                         cout << "Ron (Merchant) performed coup on Amit (Baron)" << endl;
                     }
                     else if (game.isPlayerActive("Michal"))
                     {
-                        merchant.coup(judge);
+                        merchant->coup(*judge);
                         cout << "Ron (Merchant) performed coup on Michal (Judge)" << endl;
                     }
                     else if (game.isPlayerActive("Liat"))
                     {
-                        merchant.coup(governor);
+                        merchant->coup(*governor);
                         cout << "Ron (Merchant) performed coup on Liat (Governor)" << endl;
                     }
                     else if (game.isPlayerActive("Dan"))
                     {
-                        merchant.coup(general);
+                        merchant->coup(*general);
                         cout << "Ron (Merchant) performed coup on Dan (General)" << endl;
                     }
                 }
                 else
                 {
-                    merchant.gather();
-                    cout << "Ron (Merchant) gathered a coin. Coins: " << merchant.coins() << endl;
+                    merchant->gather();
+                    cout << "Ron (Merchant) gathered a coin. Coins: " << merchant->coins() << endl;
                 }
             }
             else if (current_player == "Liat")
             {
-                if (governor.coins() >= 7)
+                if (governor->coins() >= 7)
                 {
                     // Enough coins for coup
                     if (game.isPlayerActive("Amit"))
                     {
-                        governor.coup(baron);
+                        governor->coup(*baron);
                         cout << "Liat (Governor) performed coup on Amit (Baron)" << endl;
                     }
                     else if (game.isPlayerActive("Michal"))
                     {
-                        governor.coup(judge);
+                        governor->coup(*judge);
                         cout << "Liat (Governor) performed coup on Michal (Judge)" << endl;
                     }
                     else if (game.isPlayerActive("Ron"))
                     {
-                        governor.coup(merchant);
+                        governor->coup(*merchant);
                         cout << "Liat (Governor) performed coup on Ron (Merchant)" << endl;
                     }
                     else if (game.isPlayerActive("Dan"))
                     {
-                        governor.coup(general);
+                        governor->coup(*general);
                         cout << "Liat (Governor) performed coup on Dan (General)" << endl;
                     }
                 }
                 else
                 {
-                    governor.gather();
-                    cout << "Liat (Governor) gathered a coin. Coins: " << governor.coins() << endl;
+                    governor->gather();
+                    cout << "Liat (Governor) gathered a coin. Coins: " << governor->coins() << endl;
                 }
             }
             else if (current_player == "Amit")
             {
-                if (baron.coins() >= 7)
+                if (baron->coins() >= 7)
                 {
                     // Enough coins for coup
                     if (game.isPlayerActive("Michal"))
                     {
-                        baron.coup(judge);
+                        baron->coup(*judge);
                         cout << "Amit (Baron) performed coup on Michal (Judge)" << endl;
                     }
                     else if (game.isPlayerActive("Liat"))
                     {
-                        baron.coup(governor);
+                        baron->coup(*governor);
                         cout << "Amit (Baron) performed coup on Liat (Governor)" << endl;
                     }
                     else if (game.isPlayerActive("Ron"))
                     {
-                        baron.coup(merchant);
+                        baron->coup(*merchant);
                         cout << "Amit (Baron) performed coup on Ron (Merchant)" << endl;
                     }
                     else if (game.isPlayerActive("Dan"))
                     {
-                        baron.coup(general);
+                        baron->coup(*general);
                         cout << "Amit (Baron) performed coup on Dan (General)" << endl;
                     }
                 }
                 else
                 {
-                    baron.gather();
-                    cout << "Amit (Baron) gathered a coin. Coins: " << baron.coins() << endl;
+                    baron->gather();
+                    cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
                 }
             }
             else if (current_player == "Michal")
             {
-                if (judge.coins() >= 7)
+                if (judge->coins() >= 7)
                 {
                     // Enough coins for coup
                     if (game.isPlayerActive("Amit"))
                     {
-                        judge.coup(baron);
+                        judge->coup(*baron);
                         cout << "Michal (Judge) performed coup on Amit (Baron)" << endl;
                     }
                     else if (game.isPlayerActive("Liat"))
                     {
-                        judge.coup(governor);
+                        judge->coup(*governor);
                         cout << "Michal (Judge) performed coup on Liat (Governor)" << endl;
                     }
                     else if (game.isPlayerActive("Ron"))
                     {
-                        judge.coup(merchant);
+                        judge->coup(*merchant);
                         cout << "Michal (Judge) performed coup on Ron (Merchant)" << endl;
                     }
                     else if (game.isPlayerActive("Dan"))
                     {
-                        judge.coup(general);
+                        judge->coup(*general);
                         cout << "Michal (Judge) performed coup on Dan (General)" << endl;
                     }
                 }
                 else
                 {
-                    judge.gather();
-                    cout << "Michal (Judge) gathered a coin. Coins: " << judge.coins() << endl;
+                    judge->gather();
+                    cout << "Michal (Judge) gathered a coin. Coins: " << judge->coins() << endl;
                 }
             }
         }
@@ -355,9 +355,6 @@ int main()
         // Show the final status and winner
         printGameStatus(game);
         cout << "\nThe winner is: " << game.winner() << "!" << endl;
-
-        // Exit cleanly to avoid segfault from shared_ptr issues
-        exit(0);
     }
     catch (const exception &e)
     {
