@@ -45,10 +45,9 @@ namespace coup
     void Player::bribe()
     {
         checkTurn();
-        addCoins(4);
+        removeCoins(4);
         last_action_ = "bribe";
         last_target_ = "";
-        game_.advanceTurn();
     }
 
     void Player::arrest(Player &target)

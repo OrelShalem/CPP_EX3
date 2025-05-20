@@ -11,7 +11,7 @@ namespace coup
 
     bool Judge::can_undo(const string &action) const
     {
-        return action == "coup";
+        return action == "bribe";
     }
 
     void Judge::handle_undo(Player &target)
