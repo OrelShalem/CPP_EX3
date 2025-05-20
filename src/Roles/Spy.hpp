@@ -11,7 +11,7 @@ namespace coup
         ~Spy() override = default;
 
         void block_arrest(Player &target);
-
+        int view_coins(const Player &target) const;
         string role() const override;
     };
 }

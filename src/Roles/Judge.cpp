@@ -20,6 +20,8 @@ namespace coup
         {
             throw InvalidOperation("Judge cannot undo this action");
         }
+
+        target.removeCoins(4);
     }
 
     void Judge::react_to_sanction()

@@ -8,8 +8,17 @@ namespace coup
     {
     }
 
+    int Spy::view_coins(const Player &target) const
+    {
+        return target.coins();
+    }
+
     void Spy::block_arrest(Player &target)
     {
+        if (target.get_last_action() != "arrest")
+        {
+            throw InvalidOperation("Spy can only block arrest");
+        }
         // not need to check turn because spy can block arrest at any time
         target.setBlocked(false, true);
     }

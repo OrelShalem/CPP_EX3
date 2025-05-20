@@ -34,6 +34,11 @@ namespace coup
 
     void Governor::handle_undo(Player &target)
     {
+        if (!isActive())
+        {
+            throw InvalidOperation("Governor is not active");
+        }
+
         if (!can_undo(target.get_last_action()))
         {
             throw InvalidOperation("Governor cannot undo this action");
