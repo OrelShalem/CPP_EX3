@@ -4,9 +4,6 @@
 
 namespace coup
 {
-    Governor::Governor(Game &game, const string &name) : Player(game, name)
-    {
-    }
 
     void Governor::tax()
     {
@@ -44,7 +41,7 @@ namespace coup
             throw InvalidOperation("Governor cannot undo this action");
         }
 
-        if (target.role() == "Governor")
+        if (target.role() == Role::GOVERNOR)
         {
             target.removeCoins(3); // governor remove 3 coins
         }
@@ -54,8 +51,4 @@ namespace coup
         }
     }
 
-    string Governor::role() const
-    {
-        return "Governor";
-    }
 }

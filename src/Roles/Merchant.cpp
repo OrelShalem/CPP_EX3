@@ -2,12 +2,9 @@
 #include "Merchant.hpp"
 #include "../Game.hpp"
 #include "../GameExceptions.hpp"
-
+#include <iostream>
 namespace coup
 {
-    Merchant::Merchant(Game &game, const string &name) : Player(game, name)
-    {
-    }
 
     void Merchant::gather()
     {
@@ -24,6 +21,7 @@ namespace coup
 
         if (had_three_coins)
         {
+            cout << "Merchant gathered 3 coins and got 1 more" << endl;
             addCoins(1);
         }
 
@@ -48,10 +46,5 @@ namespace coup
         catch (const NotEnoughCoins &)
         {
         }
-    }
-
-    string Merchant::role() const
-    {
-        return "Merchant";
     }
 }

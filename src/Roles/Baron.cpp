@@ -3,9 +3,6 @@
 #include "../Game.hpp"
 namespace coup
 {
-    Baron::Baron(Game &game, const string &name) : Player(game, name)
-    {
-    }
 
     void Baron::invest()
     {
@@ -24,10 +21,5 @@ namespace coup
     void Baron::react_to_sanction()
     {
         addCoins(1);
-    }
-
-    string Baron::role() const
-    {
-        return "Baron";
     }
 }

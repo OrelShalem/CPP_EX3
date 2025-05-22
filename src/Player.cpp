@@ -6,9 +6,9 @@
 
 namespace coup
 {
-    Player::Player(Game &game, const string &name)
+    Player::Player(Game &game, const string &name, Role role)
         : game_(game), name_(name), coins_(0), active_(true), blocked_from_economic_(false),
-          blocked_from_arrest_(false), last_action_(""), last_target_("")
+          blocked_from_arrest_(false), last_action_(""), last_target_(""), role_(role)
     {
     }
 
@@ -45,6 +45,10 @@ namespace coup
     void Player::bribe()
     {
         checkTurn();
+        if (coins_ < 4)
+        {
+            throw InvalidOperation("You do not have enough coins to bribe");
+        }
         removeCoins(4);
         last_action_ = "bribe";
         last_target_ = "";
@@ -72,7 +76,7 @@ namespace coup
         target.react_to_arrest();
 
         // if the target is not a general or merchant, we can remove 1 coin from the target and add 1 coin to the player
-        if (target.role() != "General" && target.role() != "Merchant")
+        if (target.role() != Role::GENERAL && target.role() != Role::MERCHANT)
         {
             target.removeCoins(1);
             addCoins(1);
@@ -108,7 +112,7 @@ namespace coup
 
         removeCoins(7);
 
-        game_.removePlayer(target.name());
+        game_.removePlayer();
 
         last_action_ = "coup";
         last_target_ = target.name();
@@ -130,12 +134,12 @@ namespace coup
         return active_;
     }
 
-    string Player::get_last_action() const
+    string &Player::get_last_action()
     {
         return last_action_;
     }
 
-    string Player::get_last_target() const
+    string &Player::get_last_target()
     {
         return last_target_;
     }
@@ -167,7 +171,7 @@ namespace coup
 
     void Player::checkTurn() const
     {
-        if (game_.turn() != name_)
+        if (game_.turn() != role_)
         {
             throw InvalidTurn("It is not your turn");
         }
@@ -199,6 +203,11 @@ namespace coup
         }
 
         target.handle_undo(target);
+    }
+
+    Role Player::role() const
+    {
+        return role_;
     }
 
 }

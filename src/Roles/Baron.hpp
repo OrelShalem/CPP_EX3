@@ -8,13 +8,11 @@ namespace coup
     class Baron : public Player
     {
     public:
-        Baron(Game &game, const string &name);
+        Baron(Game &game, const string &name, Role role) : Player(game, name, role) {};
         ~Baron() override = default;
 
         void invest();
 
         void react_to_sanction() override;
-
-        string role() const override;
     };
 }

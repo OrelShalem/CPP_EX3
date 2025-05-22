@@ -8,13 +8,11 @@ namespace coup
     class Merchant : public Player
     {
     public:
-        Merchant(Game &game, const string &name);
+        Merchant(Game &game, const string &name, Role role) : Player(game, name, role) {};
         ~Merchant() override = default;
 
         void gather() override;
 
         void react_to_arrest() override;
-
-        string role() const override;
     };
 }

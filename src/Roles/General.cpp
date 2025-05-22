@@ -5,10 +5,6 @@
 namespace coup
 {
 
-    General::General(Game &game, const string &name) : Player(game, name)
-    {
-    }
-
     void General::block_coup(Player &target)
     {
         checkCoins(5);
@@ -21,7 +17,7 @@ namespace coup
         removeCoins(5);
 
         auto victim_name = target.get_last_target();
-        auto victim = game_.getPlayer(victim_name);
+        auto victim = game_.getPlayer();
         victim->setActive(true);
     }
 
@@ -30,8 +26,4 @@ namespace coup
         addCoins(1);
     }
 
-    string General::role() const
-    {
-        return "General";
-    }
 }

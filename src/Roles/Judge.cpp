@@ -2,12 +2,9 @@
 #include "Judge.hpp"
 #include "../Game.hpp"
 #include "../GameExceptions.hpp"
+#include <iostream>
 namespace coup
 {
-
-    Judge::Judge(Game &game, const string &name) : Player(game, name)
-    {
-    }
 
     bool Judge::can_undo(const string &action) const
     {
@@ -21,15 +18,11 @@ namespace coup
             throw InvalidOperation("Judge cannot undo this action");
         }
 
-        try
-        {
-            target.removeCoins(4);
-        }
-        catch (const NotEnoughCoins &)
-        {
-            int coins = target.coins();
-            target.removeCoins(coins);
-        }
+        // next turn
+        game_.advanceTurn();
+        cout << "Judge has undone the bribe action of " << target.name() << endl;
+        target.get_last_action() = "";
+        target.get_last_target() = "";
     }
 
     void Judge::react_to_sanction()
@@ -39,7 +32,7 @@ namespace coup
         {
             try
             {
-                auto sactioner = game_.getPlayer(last_target_);
+                auto sactioner = game_.getPlayer();
                 if (sactioner->get_last_action() == "sanction" &&
                     sactioner->get_last_target() == name_)
                 {
@@ -55,8 +48,4 @@ namespace coup
         }
     }
 
-    string Judge::role() const
-    {
-        return "Judge";
-    }
 }

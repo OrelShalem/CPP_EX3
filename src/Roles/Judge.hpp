@@ -8,13 +8,11 @@ namespace coup
     class Judge : public Player
     {
     public:
-        Judge(Game &game, const string &name);
+        Judge(Game &game, const string &name, Role role) : Player(game, name, role) {};
         ~Judge() override = default;
 
         bool can_undo(const string &action) const override;
         void handle_undo(Player &target) override;
         void react_to_sanction() override;
-
-        string role() const override;
     };
 }

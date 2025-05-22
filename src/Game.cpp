@@ -3,14 +3,19 @@
 #include "Game.hpp"
 #include "Player.hpp"
 #include "GameExceptions.hpp"
-
+#include "Roles/General.hpp"
+#include "Roles/Governor.hpp"
+#include "Roles/Spy.hpp"
+#include "Roles/Baron.hpp"
+#include "Roles/Judge.hpp"
+#include "Roles/Merchant.hpp"
+#include <iostream>
+#include "Player.hpp"
 using namespace std;
 namespace coup
 {
 
-    Game::Game() : current_player_index_(0), game_started_(false) {} // constructor
-
-    string Game::turn() const // to get the current player
+    Role Game::turn() const // to get the current player
     {
 
         if (players_.empty())
@@ -18,7 +23,58 @@ namespace coup
             throw GameNotOverException("Game has not started yet");
         }
 
-        return players_[current_player_index_]->name();
+        return players_[current_player_index_]->role();
+    }
+
+    shared_ptr<Player> Game::createPlayer(const string &name, const Role &role)
+    {
+        if (game_started_)
+        {
+            throw GameException("Game already started");
+        }
+        switch (role)
+        {
+        case Role::GENERAL:
+        {
+            auto player = make_shared<General>(*this, name, role);
+            players_.push_back(player);
+            return player;
+        }
+        case Role::GOVERNOR:
+        {
+            auto player = make_shared<Governor>(*this, name, role);
+            players_.push_back(player);
+            return player;
+        }
+        case Role::SPY:
+        {
+            auto player = make_shared<Spy>(*this, name, role);
+            players_.push_back(player);
+            return player;
+        }
+        case Role::BARON:
+        {
+            auto player = make_shared<Baron>(*this, name, role);
+            players_.push_back(player);
+            return player;
+        }
+        case Role::JUDGE:
+        {
+            auto player = make_shared<Judge>(*this, name, role);
+            players_.push_back(player);
+            return player;
+        }
+        case Role::MERCHANT:
+        {
+            auto player = make_shared<Merchant>(*this, name, role);
+            players_.push_back(player);
+            return player;
+        }
+        default:
+        {
+            throw GameException("Invalid role");
+        }
+        }
     }
 
     vector<string> Game::players() const // to get the players
@@ -51,26 +107,17 @@ namespace coup
         throw GameException("No active players found");
     }
 
-    void Game::addPlayer(shared_ptr<Player> player)
+    void Game::removePlayer()
     {
-        if (game_started_)
-        {
-            throw GameException("Game has already started");
-        }
-        players_.push_back(player);
-    }
-
-    void Game::removePlayer(const string &name)
-    {
-        auto player = getPlayer(name);
+        auto player = getPlayer();
         player->setActive(false);
     }
 
-    bool Game::isPlayerActive(const string &name) const
+    bool Game::isPlayerActive()
     {
         try
         {
-            auto player = getPlayer(name);
+            auto player = getPlayer();
             return player->isActive();
         }
         catch (const PlayerNotFound &)
@@ -97,16 +144,13 @@ namespace coup
         } while (!players_[current_player_index_]->isActive());
     }
 
-    shared_ptr<Player> Game::getPlayer(const string &name) const
+    shared_ptr<Player> &Game::getPlayer()
     {
-        for (const auto &player : players_)
+        if (players_.empty())
         {
-            if (player->name() == name)
-            {
-                return player;
-            }
+            throw GameException("No players in the game");
         }
-        throw PlayerNotFound("Player not found: " + name);
+        return players_[current_player_index_];
     }
 
     size_t Game::getPlayerIndex(const string &name) const
