@@ -7,7 +7,8 @@ namespace coup
 
     void Governor::tax()
     {
-        checkTurn();
+        checkTurnAndClearSanction();
+
         if (blocked_from_economic_)
         {
             throw InvalidOperation("Governor is blocked from economic actions");
@@ -15,6 +16,10 @@ namespace coup
         addCoins(3);
         last_action_ = "tax";
         last_target_ = "";
+
+        // רישום הפעולה כממתינה
+        game_.registerPendingAction("tax", name_, "");
+
         game_.advanceTurn();
     }
 
@@ -41,6 +46,12 @@ namespace coup
             throw InvalidOperation("Governor cannot undo this action");
         }
 
+        // בדיקה אם קיימת פעולת tax ממתינה
+        if (!game_.hasPending("tax", target.name(), ""))
+        {
+            throw InvalidOperation("No pending tax action to undo");
+        }
+
         if (target.role() == Role::GOVERNOR)
         {
             target.removeCoins(3); // governor remove 3 coins
@@ -49,6 +60,9 @@ namespace coup
         {
             target.removeCoins(2); // regular player remove 2 coins
         }
+
+        // ניקוי הפעולה הממתינה
+        game_.clearPendingFor("tax");
     }
 
 }

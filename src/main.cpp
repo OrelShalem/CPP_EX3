@@ -13,34 +13,569 @@
 #include <stdexcept>
 #include <vector>
 #include <exception>
-
+#include <random>
+#include <algorithm>
+#include <thread>
+#include <chrono>
+#include <unordered_map>
 using namespace coup;
 using namespace std;
 
-// Function to print game status
-void printGameStatus(Game &game)
+// פונקציה להמרת Role למחרוזת
+string role_to_string(Role role)
 {
-    auto role = game.getPlayer();
-    cout << "\n--- Current Game Status ---" << endl;
-    cout << "Current turn: " << role->name() << endl;
-    cout << "Active players: ";
-    for (const auto &player : game.players())
+    switch (role)
     {
-        cout << player << " ";
+    case Role::GENERAL:
+        return "General";
+    case Role::GOVERNOR:
+        return "Governor";
+    case Role::SPY:
+        return "Spy";
+    case Role::BARON:
+        return "Baron";
+    case Role::JUDGE:
+        return "Judge";
+    case Role::MERCHANT:
+        return "Merchant";
+    default:
+        return "Unknown";
     }
-    cout << "\n-----------------------\n"
-         << endl;
 }
+
+class GameSimulator
+{
+private:
+    Game &game;
+    vector<shared_ptr<Player>> &players;
+    mutable mt19937 gen;
+    float coupProbability;
+    int maxTurns;
+    bool verboseMode;
+
+public:
+    GameSimulator(Game &g, vector<shared_ptr<Player>> &players, bool verbose = true)
+        : game(g), players(players), gen(random_device{}()), coupProbability(0.5f), maxTurns(300), verboseMode(verbose) {}
+
+    void printGameStatus() const
+    {
+        if (!verboseMode)
+            return;
+
+        cout << "\n=== Game Status ===" << endl;
+        cout << "Current Turn: " << endl;
+        cout << role_to_string(game.turn()) << endl;
+        cout << "Active Players: ";
+        for (const auto &playerName : game.players())
+        {
+            auto player = game.getPlayerByName(playerName);
+            cout << playerName << "(" << player->coins() << " coins) ";
+        }
+        cout << "\n================\n"
+             << endl;
+    }
+
+    void printAction(const string &playerName, const string &action, const string &target = "", bool success = true) const
+    {
+        if (!verboseMode)
+            return;
+
+        cout << playerName;
+        if (!success)
+            cout << " tried and failed to ";
+        else
+            cout << " performed ";
+        cout << action;
+        if (!target.empty())
+            cout << " on " << target;
+        cout << endl;
+    }
+
+    shared_ptr<Player> selectRandomTarget(shared_ptr<Player> &currentPlayer)
+    {
+        auto activePlayerNames = game.players();
+
+        // הסר את השחקן הנוכחי
+        activePlayerNames.erase(
+            remove(activePlayerNames.begin(), activePlayerNames.end(), currentPlayer->name()),
+            activePlayerNames.end());
+
+        if (activePlayerNames.empty())
+            return nullptr;
+
+        uniform_int_distribution<> dist(0, activePlayerNames.size() - 1);
+        string targetName = activePlayerNames[dist(gen)];
+        for (const auto &player : players)
+        {
+            if (player->name() == targetName)
+            {
+                // מצא את השחקן המתאים לפי השם
+                return player;
+            }
+        }
+        return nullptr; // במקרה שלא נמצא שחקן מתאים
+    }
+
+    bool shouldAttemptCoup() const
+    {
+        uniform_real_distribution<> dist(0.0, 1.0);
+        return dist(gen) < coupProbability;
+    }
+
+    bool shouldAttemptSpecialAction() const
+    {
+        uniform_real_distribution<> dist(0.0, 1.0);
+        return dist(gen) < 0.4f; // 40% סיכוי לפעולה מיוחדת
+    }
+
+    void executeTargetAction(shared_ptr<Player> &player, const string &action)
+    {
+        auto target = selectRandomTarget(player);
+        if (!target)
+            return;
+
+        try
+        {
+            if (action == "arrest")
+            {
+                player->arrest(*target);
+                printAction(player->name(), "arrest", target->name());
+            }
+            else if (action == "sanction")
+            {
+                player->sanction(*target);
+                printAction(player->name(), "sanction", target->name());
+            }
+            else if (action == "coup")
+            {
+                string targetName = target->name();
+                player->coup(*target);
+                printAction(player->name(), "coup", targetName);
+            }
+        }
+        catch (const GameException &e)
+        {
+            printAction(player->name(), action, target ? target->name() : "", false);
+            if (verboseMode)
+            {
+                cout << "ERROR: " << e.what() << endl;
+            }
+            throw;
+        }
+    }
+
+    void executeBasicAction(shared_ptr<Player> &player, const string &action)
+    {
+        try
+        {
+            if (action == "gather")
+            {
+                player->gather();
+                printAction(player->name(), "gather");
+            }
+            else if (action == "tax")
+            {
+                player->tax();
+                printAction(player->name(), "tax");
+            }
+            else if (action == "bribe")
+            {
+                player->bribe();
+                printAction(player->name(), "bribe");
+            }
+        }
+        catch (const GameException &e)
+        {
+            printAction(player->name(), action, "", false);
+            if (verboseMode)
+            {
+                cout << "ERROR: " << e.what() << endl;
+            }
+            throw;
+        }
+    }
+
+    void executeSpecialAction(shared_ptr<Player> &player)
+    {
+        try
+        {
+            Role role = player->role();
+
+            if (role == Role::BARON)
+            {
+                player->invest();
+                printAction(player->name(), "invest (special)");
+                return;
+            }
+            else if (role == Role::SPY)
+            {
+                auto target = selectRandomTarget(player);
+                if (target)
+                {
+                    player->block_arrest(*target);
+                    printAction(player->name(), "block_arrest (special)", target->name());
+                    return;
+                }
+            }
+            else if (role == Role::GOVERNOR)
+            {
+                auto target = selectRandomTarget(player);
+                if (target)
+                {
+                    player->undo(*target);
+                    printAction(player->name(), "undo tax (special)", target->name());
+                    return;
+                }
+            }
+            else if (role == Role::JUDGE)
+            {
+                auto target = selectRandomTarget(player);
+                if (target)
+                {
+                    player->undo(*target);
+                    printAction(player->name(), "undo bribe (special)", target->name());
+                    return;
+                }
+            }
+            else if (role == Role::GENERAL)
+            {
+                auto target = selectRandomTarget(player);
+                if (target)
+                {
+                    player->block_coup(*target);
+                    printAction(player->name(), "block_coup (special)", target->name());
+                    return;
+                }
+            }
+
+            // אם לא הצליח לבצע פעולה מיוחדת, בצע gather
+            executeBasicAction(player, "gather");
+        }
+        catch (const GameException &e)
+        {
+            // fallback
+            try
+            {
+                executeBasicAction(player, "gather");
+            }
+            catch (...)
+            {
+                if (verboseMode)
+                {
+                    cout << player->name() << " couldn't perform any action!" << endl;
+                }
+            }
+        }
+    }
+
+    void performRandomTurn(shared_ptr<Player> &player)
+    {
+        // אם יש 10+ מטבעות - חובה coup
+        if (player->coins() >= 10)
+        {
+            auto target = selectRandomTarget(player);
+            if (target)
+            {
+                try
+                {
+                    player->coup(*target);
+                    printAction(player->name(), "coup (mandatory)", target->name());
+                    return;
+                }
+                catch (const GameException &e)
+                {
+                    printAction(player->name(), "coup (mandatory)", target->name(), false);
+                    if (verboseMode)
+                    {
+                        cout << "ERROR during mandatory coup: " << e.what() << endl;
+                    }
+                }
+            }
+        }
+
+        // אם יש 7+ מטבעות ונבחר לעשות coup
+        if (player->coins() >= 7 && shouldAttemptCoup())
+        {
+            auto target = selectRandomTarget(player);
+            if (target)
+            {
+                try
+                {
+                    player->coup(*target);
+                    printAction(player->name(), "coup", target->name());
+                    return;
+                }
+                catch (const GameException &e)
+                {
+                    printAction(player->name(), "coup", target->name(), false);
+                    if (verboseMode)
+                    {
+                        cout << "ERROR during coup: " << e.what() << endl;
+                    }
+                }
+            }
+        }
+
+        // בחר סוג פעולה אקראית
+        uniform_int_distribution<> actionTypeDist(0, 2);
+        int actionType = actionTypeDist(gen);
+
+        try
+        {
+            if (actionType == 0)
+            {
+                vector<string> basicActions = {"gather", "tax", "bribe"};
+                uniform_int_distribution<> dist(0, basicActions.size() - 1);
+                executeBasicAction(player, basicActions[dist(gen)]);
+            }
+            else if (actionType == 1)
+            {
+                vector<string> targetActions = {"arrest", "sanction", "coup"};
+                uniform_int_distribution<> dist(0, targetActions.size() - 1);
+                executeTargetAction(player, targetActions[dist(gen)]);
+            }
+            else
+            {
+                executeSpecialAction(player);
+            }
+        }
+        catch (const GameException &e)
+        {
+            // fallback אחרון
+            try
+            {
+                player->gather();
+                printAction(player->name(), "gather (fallback)");
+            }
+            catch (...)
+            {
+                if (verboseMode)
+                {
+                    cout << player->name() << " couldn't perform any action!" << endl;
+                }
+            }
+        }
+    }
+
+    void increaseAggression() // goal: make the game more aggressive
+    {
+        coupProbability = min(0.9f, coupProbability + 0.2f);
+        if (verboseMode)
+        {
+            cout << ">>> Increasing aggression! Coup probability raised to " << (coupProbability * 100) << "% <<<" << endl;
+        }
+    }
+
+    bool runRandomGame()
+    {
+        cout << "\n🎮 Starting random game with " << players.size() << " players!" << endl;
+        printGameStatus();
+
+        int currentTurn = 0;
+        string lastPlayer = "";
+        int samePlayerCount = 0;
+        unordered_map<string, int> playerTurns;
+
+        while (!game.isGameOver() && currentTurn < maxTurns)
+        {
+            try
+            {
+                string currentPlayerName = game.getPlayer()->name();
+                auto currentPlayer = game.getPlayer();
+
+                // מעקב אחר מספר התורות לכל שחקן
+                playerTurns[currentPlayerName]++;
+
+                // בדיקה אם אותו שחקן מקבל תורות רבים ברצף
+                if (currentPlayerName == lastPlayer)
+                {
+                    samePlayerCount++;
+                    if (samePlayerCount >= 15 && game.players().size() > 1)
+                    {
+                        cout << "\n⚠️ Detected stalemate: " << currentPlayerName << " played "
+                             << samePlayerCount << " consecutive turns!" << endl;
+
+                        // מצא את השחקן עם הכי הרבה מטבעות
+                        string winnerName = "";
+                        int maxCoins = -1;
+
+                        for (const auto &name : game.players())
+                        {
+                            int coins = game.getPlayerByName(name)->coins();
+                            if (coins > maxCoins)
+                            {
+                                maxCoins = coins;
+                                winnerName = name;
+                            }
+                        }
+
+                        // הסר את כל השחקנים חוץ מהמנצח
+                        for (const auto &name : game.players())
+                        {
+                            if (name != winnerName)
+                            {
+                                game.removePlayer(name);
+                            }
+                        }
+
+                        cout << "👑 " << winnerName << " wins with " << maxCoins << " coins!" << endl;
+                        break;
+                    }
+                }
+                else
+                {
+                    samePlayerCount = 0;
+                    lastPlayer = currentPlayerName;
+                }
+
+                if (verboseMode)
+                {
+                    cout << "\n--- Turn " << (currentTurn + 1) << ": " << currentPlayerName
+                         << " (" << role_to_string(currentPlayer->role()) << ", " << currentPlayer->coins() << " coins) ---" << endl;
+                }
+
+                performRandomTurn(currentPlayer);
+
+                if (verboseMode && (currentTurn + 1) % 10 == 0)
+                {
+                    printGameStatus();
+                }
+
+                // הגבר אגרסיביות כל 25 תורות
+                if ((currentTurn + 1) % 25 == 0)
+                {
+                    increaseAggression();
+                }
+
+                // השהיה קצרה לקריאה
+                if (verboseMode)
+                {
+                    this_thread::sleep_for(chrono::milliseconds(200));
+                }
+            }
+            catch (const GameException &e)
+            {
+                if (verboseMode)
+                {
+                    cout << "Error: " << e.what() << endl;
+                }
+            }
+
+            currentTurn++;
+        }
+
+        if (game.isGameOver())
+        {
+            cout << "\n🏆 Game over! The winner is: " << game.winner() << "! 🏆" << endl;
+            printGameStatus();
+            return true;
+        }
+        else
+        {
+            cout << "\n⏰ Game reached turn limit (" << maxTurns << ")" << endl;
+            return false;
+        }
+    }
+
+    void setVerbose(bool verbose)
+    {
+        verboseMode = verbose;
+    }
+};
+
+void runDemoGame()
+{
+    cout << "=== Game Manual Demo ===" << endl;
+
+    Game demoGame;
+    auto governor = demoGame.createPlayer("Moses", Role::GOVERNOR);
+    auto spy = demoGame.createPlayer("Joseph", Role::SPY);
+    auto baron = demoGame.createPlayer("Michael", Role::BARON);
+    auto general = demoGame.createPlayer("Roy", Role::GENERAL);
+    auto judge = demoGame.createPlayer("Gilad", Role::JUDGE);
+
+    try
+    {
+        // Short demo
+        cout << "Players: ";
+        for (const auto &name : demoGame.players())
+        {
+            cout << name << " ";
+        }
+        cout << endl;
+
+        governor->gather();
+        spy->gather();
+        baron->gather();
+        general->gather();
+        judge->gather();
+
+        cout << "After gather round:" << endl;
+        cout << "Moses: " << governor->coins() << " coins" << endl;
+        cout << "Joseph: " << spy->coins() << " coins" << endl;
+
+        governor->tax(); // Governor gets 3
+        cout << "Moses after tax: " << governor->coins() << " coins" << endl;
+    }
+    catch (const exception &e)
+    {
+        cout << "Demo error: " << e.what() << endl;
+    }
+}
+
+// void runMultipleRandomGames(int numGames)
+// {
+//     cout << "\n=== Running " << numGames << " random games ===" << endl;
+
+//     map<string, int> wins;
+//     int successfulGames = 0;
+
+//     for (int i = 0; i < numGames; i++)
+//     {
+//         cout << "\n--- Game " << (i + 1) << " ---" << endl;
+
+//         Game game;
+//         auto general = game.createPlayer("Dan", Role::GENERAL);
+//         auto merchant = game.createPlayer("Ron", Role::MERCHANT);
+//         auto governor = game.createPlayer("Liat", Role::GOVERNOR);
+//         auto spy = game.createPlayer("Noa", Role::SPY);
+//         auto baron = game.createPlayer("Amit", Role::BARON);
+//         auto judge = game.createPlayer("Michal", Role::JUDGE);
+
+//         vector<shared_ptr<Player>> &players = game.getPlayers();
+
+//         GameSimulator simulator(game, players, false); // Without verbose in multiple games
+
+//         if (simulator.runRandomGame())
+//         {
+//             successfulGames++;
+//             string winner = game.winner();
+//             wins[winner]++;
+//             cout << "Winner: " << winner << endl;
+//         }
+//     }
+
+//     cout << "\n=== Summary of " << numGames << " games ===" << endl;
+//     cout << "Games completed: " << successfulGames << "/" << numGames << endl;
+//     cout << "Wins by player:" << endl;
+//     for (const auto &pair : wins)
+//     {
+//         cout << pair.first << ": " << pair.second << " wins" << endl;
+//     }
+// }
 
 int main()
 {
     try
     {
-        // Create a new game
-        Game game;
+        // Short manual demo
+        runDemoGame();
 
-        // Create players with different roles
-        cout << "Creating players with different roles..." << endl;
+        cout << "\n"
+             << string(50, '=') << endl;
+
+        // One detailed random game
+        Game game;
         auto general = game.createPlayer("Dan", Role::GENERAL);
         auto merchant = game.createPlayer("Ron", Role::MERCHANT);
         auto governor = game.createPlayer("Liat", Role::GOVERNOR);
@@ -48,335 +583,29 @@ int main()
         auto baron = game.createPlayer("Amit", Role::BARON);
         auto judge = game.createPlayer("Michal", Role::JUDGE);
 
-        cout << "Game starts with 6 players!" << endl;
+        vector<shared_ptr<Player>> &players = game.getPlayers();
 
-        // --- ROUNDS 1-2: Initial resource gathering ---
-        cout << "\n=== ROUNDS 1-2: Initial resource gathering ===" << endl;
+        GameSimulator simulator(game, players, true); // With verbose
 
-        // First round - each player gathers coins
-        printGameStatus(game);
-        general->gather();
-        cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
+        simulator.runRandomGame();
 
-        printGameStatus(game);
-        merchant->gather();
-        cout << "Ron (Merchant) gathered a coin. Coins: " << merchant->coins() << endl;
+        cout << "\n"
+             << string(50, '=') << endl;
 
-        printGameStatus(game);
-        governor->gather();
-        cout << "Liat (Governor) gathered a coin. Coins: " << governor->coins() << endl;
+        // // Multiple games
+        // char choice;
+        // cout << "Run 10 additional games? (y/n): ";
+        // cin >> choice;
 
-        printGameStatus(game);
-        spy->gather();
-        cout << "Noa (Spy) gathered a coin. Coins: " << spy->coins() << endl;
-
-        printGameStatus(game);
-        baron->gather();
-        cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
-
-        printGameStatus(game);
-        judge->gather();
-        cout << "Michal (Judge) gathered a coin. Coins: " << judge->coins() << endl;
-
-        // Second round - continue gathering
-        printGameStatus(game);
-        general->gather();
-        cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
-
-        printGameStatus(game);
-        merchant->gather();
-        cout << "Ron (Merchant) gathered a coin. Coins: " << merchant->coins() << endl;
-        cout << "Next turn Ron will have 3 coins and will get an extra coin when gathering (special ability)." << endl;
-
-        printGameStatus(game);
-        governor->gather();
-        cout << "Liat (Governor) gathered a coin. Coins: " << governor->coins() << endl;
-
-        printGameStatus(game);
-        spy->gather();
-        cout << "Noa (Spy) gathered a coin. Coins: " << spy->coins() << endl;
-
-        printGameStatus(game);
-        baron->gather();
-        cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
-
-        printGameStatus(game);
-        judge->gather();
-        cout << "Michal (Judge) gathered a coin. Coins: " << judge->coins() << endl;
-
-        // --- ROUNDS 3-4: Demonstrating special abilities ---
-        cout << "\n=== ROUNDS 3-4: Demonstrating special abilities ===" << endl;
-
-        // General uses tax
-        printGameStatus(game);
-        general->tax();
-        cout << "Dan (General) used tax to collect 2 coins. Coins: " << general->coins() << endl;
-
-        // Merchant gathers (should get an extra coin with 3+ coins)
-        printGameStatus(game);
-        merchant->gather();
-        cout << "Ron (Merchant) gathered a coin plus a bonus coin (special ability). Coins: " << merchant->coins() << endl;
-
-        // Governor uses tax (gets 3 coins instead of 2)
-        printGameStatus(game);
-        governor->tax();
-        cout << "Liat (Governor) used tax to collect 3 coins (special ability). Coins: " << governor->coins() << endl;
-
-        // Spy's turn - here we can check coins first, then arrest
-        printGameStatus(game);
-        // המרגל צופה במטבעות בתור שלה, ואז מבצעת מעצר
-        cout << "Noa (Spy) checking Amit's coins during her turn and blocked his arrest: " << std::static_pointer_cast<Spy>(spy)->view_coins(*baron) << endl;
-        spy->gather();
-        cout << "Noa (Spy) gathered a coin. Coins: " << spy->coins() << endl;
-
-        // Baron's turn - gather one coin
-        printGameStatus(game);
-        baron->gather();
-        cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
-
-        // Judge's turn
-        printGameStatus(game);
-        judge->gather();
-        cout << "Michal (Judge) gathered a coin. Coins: " << judge->coins() << endl;
-
-        // General's turn
-        printGameStatus(game);
-        general->gather();
-        cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
-
-        // Merchant's turn
-        printGameStatus(game);
-        merchant->gather();
-        cout << "Ron (Merchant) gathered a coin. Coins: " << merchant->coins() << endl;
-
-        // Governor's turn
-        printGameStatus(game);
-        governor->gather();
-        cout << "Liat (Governor) gathered a coin. Coins: " << governor->coins() << endl;
-
-        // Spy's turn
-        printGameStatus(game);
-        spy->gather();
-        cout << "Noa (Spy) gathered a coin. Coins: " << spy->coins() << endl;
-
-        // Baron's turn - gather another coin to reach 3
-        printGameStatus(game);
-        baron->gather();
-        cout << "Amit (Baron) gathered another coin. Coins: " << baron->coins() << endl;
-
-        // Judge's turn
-        printGameStatus(game);
-        judge->gather();
-        cout << "Michal (Judge) gathered a coin. Coins222: " << judge->coins() << endl;
-        // general turn
-        printGameStatus(game);
-        general->gather();
-        cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
-
-        // // Baron finally has 3 coins and can now invest
-        // printGameStatus(game);
-        // std::static_pointer_cast<Baron>(baron)->invest();
-        // cout << "Amit (Baron) invested 3 coins to receive 6 (special ability). Coins: " << baron->coins() << endl;
-
-        // --- ROUNDS 5-6: מצבי קונפליקט והתגוננות ---
-        cout << "\n=== ROUNDS 5-6: Conflicts and Defense ===" << endl;
-
-        printGameStatus(game);
-        merchant->gather();
-        cout << "Ron (Merchant) gathered a coin. Coins: " << merchant->coins() << endl;
-
-        printGameStatus(game);
-        // נציב (ליאת) מבטל פעולת מס של הגנרל (יכולת מיוחדת) - כעת זה בתור שלה
-        governor->undo(*general);
-        cout << "Liat (Governor) cancelled Dan's tax action (special ability)." << endl;
-        cout << "Dan (General) now has " << general->coins() << " coins." << endl;
-
-        printGameStatus(game);
-        // מרגל (נועה) מונע מהברון להשתמש במעצר בתור הבא
-        std::static_pointer_cast<Spy>(spy)->block_arrest(*baron);
-        cout << "Noa (Spy) blocked Amit's arrest ability (special ability)." << endl;
-        spy->gather();
-        cout << "Noa (Spy) gathered a coin. Coins: " << spy->coins() << endl;
-
-        printGameStatus(game);
-        baron->gather();
-        cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
-
-        printGameStatus(game);
-        judge->sanction(*merchant);
-        cout << "Michal (Judge) sanctioned Ron (Merchant) for 3 coins. Coins: " << judge->coins() << endl;
-        cout << "Ron (Merchant) is now blocked from economic actions." << endl;
-
-        // סוחר מנסה לבצע gather אבל נחסם בגלל החרם
-        printGameStatus(game);
-        general->gather();
-        cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
-
-        printGameStatus(game);
-        try
-        {
-            merchant->gather();
-            cout << "Ron (Merchant) gathered a coin. Coins: " << merchant->coins() << endl;
-        }
-        catch (const InvalidOperation &e)
-        {
-            cout << "Ron (Merchant) tried to gather coins but was blocked by sanction: " << e.what() << endl;
-            // צריך לקדם את התור באופן ידני כי הפעולה נכשלה
-            game.advanceTurn();
-        }
-
-        // הסוחר מנסה לשחד
-        printGameStatus(game);
-        merchant->bribe();
-        cout << "Ron (Merchant) paid 4 coins for bribe. Coins: " << merchant->coins() << endl;
-
-        // שופט מבטל פעולת שוחד של הסוחר
-        printGameStatus(game);
-        judge->undo(*merchant);
-        cout << "Michal (Judge) cancelled Ron's bribe (special ability)." << endl;
-
-        // --- ROUNDS 7-8: הפיכות והדחות ---
-        cout << "\n=== ROUNDS 7-8: Coups and Eliminations ===" << endl;
-
-        // צבירת מטבעות לגנרל
-        while (general->coins() < 7)
-        {
-            printGameStatus(game);
-            general->gather();
-            cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
-
-            // תורות של שאר השחקנים בינתיים
-            printGameStatus(game);
-            merchant->gather();
-            cout << "Ron (Merchant) gathered a coin. Coins: " << merchant->coins() << endl;
-
-            printGameStatus(game);
-            governor->gather();
-            cout << "Liat (Governor) gathered a coin. Coins: " << governor->coins() << endl;
-
-            printGameStatus(game);
-            spy->gather();
-            cout << "Noa (Spy) gathered a coin. Coins: " << spy->coins() << endl;
-
-            printGameStatus(game);
-            baron->gather();
-            cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
-
-            printGameStatus(game);
-            judge->gather();
-            cout << "Michal (Judge) gathered a coin. Coins: " << judge->coins() << endl;
-        }
-
-        // גנרל מבצע coup על השופט
-        printGameStatus(game);
-        general->coup(*judge);
-        cout << "Dan (General) performed coup on Michal (Judge)! Michal is out of the game." << endl;
-
-        // צבירת מטבעות לברון
-        while (baron->coins() < 7)
-        {
-            printGameStatus(game);
-            merchant->gather();
-            cout << "Ron (Merchant) gathered a coin. Coins: " << merchant->coins() << endl;
-
-            printGameStatus(game);
-            governor->gather();
-            cout << "Liat (Governor) gathered a coin. Coins: " << governor->coins() << endl;
-
-            printGameStatus(game);
-            spy->gather();
-            cout << "Noa (Spy) gathered a coin. Coins: " << spy->coins() << endl;
-
-            printGameStatus(game);
-            baron->gather();
-            cout << "Amit (Baron) gathered a coin. Coins: " << baron->coins() << endl;
-
-            printGameStatus(game);
-            general->gather();
-            cout << "Dan (General) gathered a coin. Coins: " << general->coins() << endl;
-        }
-
-        // ברון מנסה לבצע coup על הנציב
-        printGameStatus(game);
-        baron->coup(*governor);
-        cout << "Amit (Baron) attempts to coup Liat (Governor)..." << endl;
-
-        // גנרל חוסם את ההפיכה
-        std::static_pointer_cast<General>(general)->block_coup(*baron);
-        cout << "Dan (General) blocks the coup by paying 5 coins (special ability)!" << endl;
-        cout << "Liat (Governor) remains in the game." << endl;
-        cout << "Dan (General) now has " << general->coins() << " coins." << endl;
-
-        // --- FORCED COUP DEMONSTRATION (10+ coins) ---
-        cout << "\n=== FORCED COUP DEMONSTRATION (10+ COINS) ===" << endl;
-
-        // Continue until merchant has 10 coins
-        while (merchant->coins() < 10)
-        {
-            printGameStatus(game);
-            auto current = game.getPlayer();
-            current->gather();
-            cout << current->name() << " gathered a coin. Coins: " << current->coins() << endl;
-        }
-
-        // Merchant must perform coup with 10+ coins
-        printGameStatus(game);
-        cout << "Ron (Merchant) has 10+ coins and MUST perform a coup!" << endl;
-        merchant->coup(*spy);
-        cout << "Ron (Merchant) performed a forced coup on Noa (Spy)!" << endl;
-        cout << "Noa (Spy) is out of the game." << endl;
-
-        // --- PLAY UNTIL WINNER ---
-        cout << "\n=== CONTINUING UNTIL WINNER ===" << endl;
-
-        // Continue playing until there's a winner
-        while (game.players().size() > 1)
-        {
-            printGameStatus(game);
-            auto current = game.getPlayer();
-
-            if (current->coins() >= 7)
-            {
-                // מוצא מטרה תקפה לקופ
-                shared_ptr<Player> target = nullptr;
-                for (const auto &player_name : game.players())
-                {
-                    if (player_name != current->name())
-                    {
-                        for (auto p : {general, merchant, governor, baron})
-                        {
-                            if (p && p->isActive() && p->name() == player_name)
-                            {
-                                target = p;
-                                break;
-                            }
-                        }
-                        if (target)
-                            break;
-                    }
-                }
-
-                if (target)
-                {
-                    current->coup(*target);
-                    cout << current->name() << " performed a coup on " << target->name() << "!" << endl;
-                    cout << target->name() << " is out of the game." << endl;
-                }
-            }
-            else
-            {
-                current->gather();
-                cout << current->name() << " gathered a coin. Coins: " << current->coins() << endl;
-            }
-        }
-
-        // Announce the winner
-        printGameStatus(game);
-        cout << "\nThe winner is: " << game.winner() << "!" << endl;
+        // if (choice == 'y' || choice == 'Y')
+        // {
+        //     runMultipleRandomGames(10);
+        // }
     }
     catch (const exception &e)
     {
-        cerr << "An error occurred: " << e.what() << endl;
+        cerr << "General error: " << e.what() << endl;
+        return 1;
     }
 
     return 0;

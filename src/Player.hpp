@@ -23,15 +23,16 @@ namespace coup
     class Player
     {
     protected:
-        Game &game_;                 // to store the game
-        string name_;                // to store the name of the player
-        int coins_;                  // to store the number of coins the player has
-        bool active_;                // to check if the player is active
-        bool blocked_from_economic_; // to check if the player is blocked from economic actions
-        bool blocked_from_arrest_;   // to check if the player is blocked from arrest
-        string last_action_;         // to store the last action the player made
-        string last_target_;         // to store the last target of the action
-        Role role_;                  // to store the role of the player
+        Game &game_;                   // to store the game
+        string name_;                  // to store the name of the player
+        int coins_;                    // to store the number of coins the player has
+        bool active_;                  // to check if the player is active
+        bool blocked_from_economic_;   // to check if the player is blocked from economic actions
+        bool blocked_from_arrest_;     // to check if the player is blocked from arrest
+        int sanction_turns_remaining_; // מספר התורות שנשארו לסנקציה
+        string last_action_;           // to store the last action the player made
+        string last_target_;           // to store the last target of the action
+        Role role_;                    // to store the role of the player
     public:
         Player(Game &game, const string &name, Role role);
         virtual ~Player() = default; // destructor is virtual because it is a base class and we want to call the destructor of the derived class and default because we don't want to do anything in the destructor
@@ -64,6 +65,7 @@ namespace coup
 
         // inner functions
         void setBlocked(bool from_economic, bool from_arrest);
+        void setSanctionTurns(int turns);
         void setActive(bool active);
         void addCoins(int amount);
         void removeCoins(int amount);
@@ -71,6 +73,15 @@ namespace coup
         // validations
         void checkTurn() const;
         void checkCoins(int amount) const;
+        void checkAndClearSanction(); // פונקציה חדשה לטיפול בסנקציות
+
+        // פונקציה חדשה שמשלבת בדיקת סנקציה ובדיקת תור
+        void checkTurnAndClearSanction();
+
+        // פעולות מיוחדות - virtual methods עם הצהרה בלבד
+        virtual void invest();
+        virtual void block_arrest(Player &target);
+        virtual void block_coup(Player &target);
     };
 
 }

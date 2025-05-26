@@ -11,6 +11,7 @@
 #include "Roles/Merchant.hpp"
 #include <iostream>
 #include "Player.hpp"
+#include <algorithm>
 using namespace std;
 namespace coup
 {
@@ -32,41 +33,80 @@ namespace coup
         {
             throw GameException("Game already started");
         }
+
+        if (name.empty())
+        {
+            throw GameException("Player name cannot be empty");
+        }
+
+        // בדיקה אם השם כבר קיים ויצירת שם ייחודי
+        string unique_name = name;
+        int counter = 1;
+
+        // בדיקה אם השם כבר קיים
+        while (true)
+        {
+            bool name_exists = false;
+            for (const auto &player : players_)
+            {
+                if (player->name() == unique_name)
+                {
+                    name_exists = true;
+                    break;
+                }
+            }
+
+            if (!name_exists)
+            {
+                break; // השם ייחודי, יוצאים מהלולאה
+            }
+
+            // השם קיים, יוצרים שם חדש עם מספר
+            counter++;
+            unique_name = name + "_" + to_string(counter);
+        }
+
+        // בדיקה שלא חורגים ממספר השחקנים המקסימלי
+        if (players_.size() >= 6)
+        {
+            throw GameException("Maximum number of players (6) reached");
+        }
+
         switch (role)
         {
         case Role::GENERAL:
         {
-            auto player = make_shared<General>(*this, name, role);
+            auto player = make_shared<General>(*this, unique_name, role);
             players_.push_back(player);
             return player;
         }
         case Role::GOVERNOR:
         {
-            auto player = make_shared<Governor>(*this, name, role);
+            auto player = make_shared<Governor>(*this, unique_name, role);
             players_.push_back(player);
             return player;
         }
         case Role::SPY:
         {
-            auto player = make_shared<Spy>(*this, name, role);
+            auto player = make_shared<Spy>(*this, unique_name, role);
             players_.push_back(player);
             return player;
         }
         case Role::BARON:
         {
-            auto player = make_shared<Baron>(*this, name, role);
+            auto player = make_shared<Baron>(*this, unique_name, role);
             players_.push_back(player);
             return player;
         }
         case Role::JUDGE:
         {
-            auto player = make_shared<Judge>(*this, name, role);
+            auto player = make_shared<Judge>(*this, unique_name, role);
             players_.push_back(player);
             return player;
         }
         case Role::MERCHANT:
         {
-            auto player = make_shared<Merchant>(*this, name, role);
+            auto player = make_shared<Merchant>(*this, unique_name, role);
             players_.push_back(player);
             return player;
         }
@@ -107,10 +147,18 @@ namespace coup
         throw GameException("No active players found");
     }
 
-    void Game::removePlayer()
+    void Game::removePlayer(const string &player_name)
     {
-        auto player = getPlayer();
-        player->setActive(false);
+        // מחפשים את השחקן לפי השם
+        for (auto &player : players_)
+        {
+            if (player->name() == player_name)
+            {
+                player->setActive(false);
+                return;
+            }
+        }
+        throw PlayerNotFound("Player not found: " + player_name);
     }
 
     bool Game::isPlayerActive()
@@ -137,6 +185,9 @@ namespace coup
         {
             game_started_ = true;
         }
+
+        string finished = players_[current_player_index_]->name();
+        clearPendingFor(finished);
 
         do
         {
@@ -165,6 +216,18 @@ namespace coup
         throw PlayerNotFound("Player not found: " + name);
     }
 
+    shared_ptr<Player> Game::getPlayerByName(const string &name) const
+    {
+        for (const auto &player : players_)
+        {
+            if (player->name() == name)
+            {
+                return player;
+            }
+        }
+        throw PlayerNotFound("Player not found: " + name);
+    }
+
     bool Game::isGameStarted() const
     {
         return game_started_;
@@ -183,4 +246,27 @@ namespace coup
         return active_count <= 1 && game_started_;
     }
 
+    bool Game::hasPending(const string &action, const string &actor, const string &target) const
+    {
+        return std::any_of(pending_actions_.begin(),
+                           pending_actions_.end(),
+                           [&](const Pending &p)
+                           {
+                               return p.action == action &&
+                                      p.actor == actor &&
+                                      p.target == target;
+                           });
+    }
+
+    void Game::clearPendingFor(const string &actor)
+    {
+        pending_actions_.erase(
+            std::remove_if(pending_actions_.begin(),
+                           pending_actions_.end(),
+                           [&](const Pending &p)
+                           {
+                               return p.actor == actor;
+                           }),
+            pending_actions_.end());
+    }
 }

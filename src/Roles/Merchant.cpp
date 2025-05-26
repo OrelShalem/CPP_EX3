@@ -8,6 +8,7 @@ namespace coup
 
     void Merchant::gather()
     {
+        checkAndClearSanction();
         checkTurn();
 
         if (blocked_from_economic_)

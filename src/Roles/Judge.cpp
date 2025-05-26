@@ -18,11 +18,20 @@ namespace coup
             throw InvalidOperation("Judge cannot undo this action");
         }
 
+        // בדיקה אם קיימת פעולת bribe ממתינה
+        if (!game_.hasPending("bribe", target.name(), ""))
+        {
+            throw InvalidOperation("No pending bribe action to undo");
+        }
+
         // next turn
         game_.advanceTurn();
         cout << "Judge has undone the bribe action of " << target.name() << endl;
         target.get_last_action() = "";
         target.get_last_target() = "";
+
+        // ניקוי הפעולה הממתינה
+        game_.clearPendingFor("bribe");
     }
 
     void Judge::react_to_sanction()

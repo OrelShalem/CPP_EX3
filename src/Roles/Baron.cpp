@@ -6,6 +6,7 @@ namespace coup
 
     void Baron::invest()
     {
+        checkAndClearSanction();
         checkTurn();
         checkCoins(3);
 
@@ -14,6 +15,8 @@ namespace coup
 
         last_action_ = "invest";
         last_target_ = "";
+
+        game_.registerPendingAction("invest", name_, "");
 
         game_.advanceTurn();
     }

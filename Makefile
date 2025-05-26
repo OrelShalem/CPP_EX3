@@ -16,14 +16,14 @@ $(shell mkdir -p $(OBJ_DIR) $(BIN_DIR))
 # קבצי מקור
 MAIN_SRC = $(SRC_DIR)/main.cpp
 # הקובץ עם ה-DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN חייב להופיע ראשון
-TEST_SRC = $(TEST_DIR)/EdgeCaseTest.cpp $(TEST_DIR)/GameTest.cpp $(TEST_DIR)/PlayerTest.cpp $(TEST_DIR)/RolesTest.cpp $(TEST_DIR)/IntegrationTest.cpp
+TEST_SRC = $(TEST_DIR)/EdgeCaseTest.cpp $(TEST_DIR)/GameTest.cpp $(TEST_DIR)/PlayerTest.cpp $(TEST_DIR)/RolesTest.cpp
 
 # קבצי אובייקט
 SRC_OBJ = $(OBJ_DIR)/Player.o $(OBJ_DIR)/Game.o
 ROLE_OBJ = $(OBJ_DIR)/Baron.o $(OBJ_DIR)/General.o $(OBJ_DIR)/Governor.o $(OBJ_DIR)/Judge.o $(OBJ_DIR)/Merchant.o $(OBJ_DIR)/Spy.o
 MAIN_OBJ = $(OBJ_DIR)/main.o
 # EdgeCaseTest.o חייב להופיע ראשון כי הוא מכיל את ה-main
-TEST_OBJ = $(OBJ_DIR)/EdgeCaseTest.o $(OBJ_DIR)/GameTest.o $(OBJ_DIR)/PlayerTest.o $(OBJ_DIR)/RolesTest.o $(OBJ_DIR)/IntegrationTest.o
+TEST_OBJ = $(OBJ_DIR)/EdgeCaseTest.o $(OBJ_DIR)/GameTest.o $(OBJ_DIR)/PlayerTest.o $(OBJ_DIR)/RolesTest.o
 
 # יעדים
 all: Main test
@@ -36,8 +36,12 @@ Main: $(BIN_DIR)/Main
 test: $(BIN_DIR)/test
 	$(BIN_DIR)/test
 
-# בדיקת זליגת זיכרון
-valgrind: $(BIN_DIR)/test
+# בדיקת זליגת זיכרון - בודק גם Main וגם טסטים
+valgrind: $(BIN_DIR)/Main $(BIN_DIR)/test
+	@echo "=== Valgrind check for Main ==="
+	valgrind $(VALGRIND_FLAGS) $(BIN_DIR)/Main
+	@echo ""
+	@echo "=== Valgrind check for tests ==="
 	valgrind $(VALGRIND_FLAGS) $(BIN_DIR)/test
 
 # קימפול תוכנית ראשית

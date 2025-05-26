@@ -8,17 +8,53 @@ namespace coup
 {
     Player::Player(Game &game, const string &name, Role role)
         : game_(game), name_(name), coins_(0), active_(true), blocked_from_economic_(false),
-          blocked_from_arrest_(false), last_action_(""), last_target_(""), role_(role)
+          blocked_from_arrest_(false), sanction_turns_remaining_(0), last_action_(""), last_target_(""), role_(role)
     {
+    }
+
+    void Player::checkTurn() const
+    {
+        if (game_.turn() != role_)
+        {
+            throw InvalidTurn("It is not your turn");
+        }
+
+        if (!active_)
+        {
+            throw InvalidOperation("You are not active");
+        }
+    }
+
+    void Player::checkAndClearSanction()
+    {
+        // כאשר שחקן מקבל את תורו, יש לבדוק אם יש עליו סנקציה ולהסיר אותה
+        if (blocked_from_economic_ && sanction_turns_remaining_ > 0)
+        {
+            sanction_turns_remaining_ = 0;
+            blocked_from_economic_ = false;
+        }
+    }
+
+    void Player::checkTurnAndClearSanction()
+    {
+        // ראשית מנקים סנקציות
+        checkAndClearSanction();
+        // אז בודקים את התור
+        checkTurn();
     }
 
     void Player::gather()
     {
-        checkTurn();
+        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
 
         if (blocked_from_economic_)
         {
             throw InvalidOperation("You are blocked from economic actions");
+        }
+
+        if (coins_ >= 10)
+        {
+            throw InvalidOperation("You must perform a coup when you have 10 or more coins");
         }
 
         addCoins(1);
@@ -29,22 +65,36 @@ namespace coup
 
     void Player::tax()
     {
-        checkTurn();
+        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
 
         if (blocked_from_economic_)
         {
             throw InvalidOperation("You are blocked from economic actions");
         }
 
+        if (coins_ >= 10)
+        {
+            throw InvalidOperation("You must perform a coup when you have 10 or more coins");
+        }
+
         addCoins(2);
         last_action_ = "tax";
         last_target_ = "";
+
+        // רישום הפעולה כממתינה
+        game_.registerPendingAction("tax", name_, "");
+
         game_.advanceTurn();
     }
 
     void Player::bribe()
     {
-        checkTurn();
+        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
+
+        if (coins_ >= 10)
+        {
+            throw InvalidOperation("You must perform a coup when you have 10 or more coins");
+        }
         if (coins_ < 4)
         {
             throw InvalidOperation("You do not have enough coins to bribe");
@@ -52,11 +102,21 @@ namespace coup
         removeCoins(4);
         last_action_ = "bribe";
         last_target_ = "";
+
+        // רישום הפעולה כממתינה
+        game_.registerPendingAction("bribe", name_, "");
+
+        game_.advanceTurn();
     }
 
     void Player::arrest(Player &target)
     {
-        checkTurn();
+        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
+
+        if (coins_ >= 10)
+        {
+            throw InvalidOperation("You must perform a coup when you have 10 or more coins");
+        }
 
         if (blocked_from_arrest_)
         {
@@ -71,6 +131,9 @@ namespace coup
         // before arresting, we need to set the last action and target
         last_action_ = "arrest";
         last_target_ = target.name();
+
+        // רישום הפעולה כממתינה
+        game_.registerPendingAction("arrest", name_, target.name());
 
         // now we can react to the arrest
         target.react_to_arrest();
@@ -87,7 +150,12 @@ namespace coup
 
     void Player::sanction(Player &target)
     {
-        checkTurn();
+        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
+
+        if (coins_ >= 10)
+        {
+            throw InvalidOperation("You must perform a coup when you have 10 or more coins");
+        }
         checkCoins(3);
         // pay the sanction
         removeCoins(3);
@@ -96,8 +164,14 @@ namespace coup
         last_action_ = "sanction";
         last_target_ = target.name();
 
+        // רישום הפעולה כממתינה
+        game_.registerPendingAction("sanction", name_, target.name());
+
         // block the target from economic actions
         target.setBlocked(true, false);
+
+        // הגדרת הסנקציה לתור הבא (משתמשים ב-1 כדי לסמן שיש סנקציה פעילה)
+        target.setSanctionTurns(1);
 
         // now we can react to the sanction
         target.react_to_sanction();
@@ -107,15 +181,32 @@ namespace coup
 
     void Player::coup(Player &target)
     {
-        checkTurn();
+        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
+
         checkCoins(7);
 
+        // בודק שהשחקן היעד פעיל לפני הסרתו
+        if (!target.isActive())
+        {
+            throw InvalidOperation("Cannot coup an inactive player");
+        }
+
+        // מסיר מטבעות רק לאחר שוידאנו שהפעולה חוקית
         removeCoins(7);
 
-        game_.removePlayer();
+        // מעביר את שם השחקן היעד לפונקציה removePlayer
+        game_.removePlayer(target.name());
 
         last_action_ = "coup";
         last_target_ = target.name();
+
+        // רישום הפעולה כממתינה רק אם השחקן הוא לא גנרל
+        // (כי רק גנרל יכול לבטל coup)
+        if (target.role() != Role::GENERAL)
+        {
+            game_.registerPendingAction("coup", name_, target.name());
+        }
+
         game_.advanceTurn();
     }
 
@@ -150,6 +241,11 @@ namespace coup
         blocked_from_arrest_ = from_arrest;
     }
 
+    void Player::setSanctionTurns(int turns)
+    {
+        sanction_turns_remaining_ = turns;
+    }
+
     void Player::setActive(bool active)
     {
         active_ = active;
@@ -167,24 +263,6 @@ namespace coup
             throw NotEnoughCoins("You do not have enough coins to remove");
         }
         coins_ -= amount;
-    }
-
-    void Player::checkTurn() const
-    {
-        if (game_.turn() != role_)
-        {
-            throw InvalidTurn("It is not your turn");
-        }
-
-        if (!active_)
-        {
-            throw InvalidOperation("You are not active");
-        }
-
-        if (coins_ >= 10)
-        {
-            throw InvalidOperation("You must perform a coup when you have 10 or more coins");
-        }
     }
 
     void Player::checkCoins(int amount) const
@@ -210,4 +288,21 @@ namespace coup
         return role_;
     }
 
+    // מימושי ברירת מחדל לפעולות מיוחדות
+    void Player::invest()
+    {
+        throw InvalidOperation("This player cannot invest");
+    }
+
+    void Player::block_arrest(Player &target)
+    {
+        (void)target; // למנוע warning על פרמטר לא בשימוש
+        throw InvalidOperation("This player cannot block arrest");
+    }
+
+    void Player::block_coup(Player &target)
+    {
+        (void)target; // למנוע warning על פרמטר לא בשימוש
+        throw InvalidOperation("This player cannot block coup");
+    }
 }

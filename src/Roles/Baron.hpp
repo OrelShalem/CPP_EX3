@@ -11,7 +11,7 @@ namespace coup
         Baron(Game &game, const string &name, Role role) : Player(game, name, role) {};
         ~Baron() override = default;
 
-        void invest();
+        void invest() override;
 
         void react_to_sanction() override;
     };

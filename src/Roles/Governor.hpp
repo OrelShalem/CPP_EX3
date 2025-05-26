@@ -16,5 +16,4 @@ namespace coup
         bool can_undo(const string &action) const override;
         void handle_undo(Player &target) override;
     };
-
 }
