@@ -1,26 +1,36 @@
 // orel8155@gmail.com
-#include "Game.hpp"
-#include "Player.hpp"
-#include "Roles/General.hpp"
+/**
+ * Main implementation file for the Coup card game
+ * This file implements the game's main function, simulation logic, and user interface
+ */
+
+// Include necessary headers
+#include "Game.hpp"               // Core game logic
+#include "Player.hpp"             // Player class definition
+#include "Roles/General.hpp"      // Role-specific classes
 #include "Roles/Governor.hpp"
 #include "Roles/Spy.hpp"
 #include "Roles/Baron.hpp"
 #include "Roles/Judge.hpp"
-#include "GameExceptions.hpp"
-#include "CoupGUI.hpp"
-#include <SFML/System/Thread.hpp>
-#include <iostream>
-#include <vector>
-#include <exception>
-#include <random>
-#include <algorithm>
-#include <thread>
-#include <chrono>
-#include <unordered_map>
-using namespace coup;
-using namespace std;
+#include "GameExceptions.hpp"     // Custom exceptions
+#include "CoupGUI.hpp"            // Graphical user interface
+#include <SFML/System/Thread.hpp> // SFML library for threads
+#include <iostream>               // Input/output streams
+#include <vector>                 // Dynamic arrays
+#include <exception>              // Exception handling
+#include <random>                 // Random number generation
+#include <algorithm>              // Algorithm utilities
+#include <thread>                 // Thread support
+#include <chrono>                 // Time utilities
+#include <unordered_map>          // Hash map
+using namespace coup;             // Use the coup namespace
+using namespace std;              // Use the standard namespace
 
-// פונקציה להמרת Role למחרוזת
+/**
+ * Converts a Role enum value to its string representation
+ * @param role The Role enum to convert
+ * @return String representation of the role
+ */
 string role_to_string(Role role)
 {
     switch (role)
@@ -42,20 +52,34 @@ string role_to_string(Role role)
     }
 }
 
+/**
+ * GameSimulator class - Simulates automatic play of the Coup game
+ * This class provides functionality to run random AI-driven games
+ */
 class GameSimulator
 {
 private:
-    Game &game;
-    vector<shared_ptr<Player>> &players;
-    mutable mt19937 gen;
-    float coupProbability;
-    int maxTurns;
-    bool verboseMode;
+    Game &game;                   // Reference to the game instance
+    vector<shared_ptr<Player>> &players;  // Reference to the player list
+    mutable mt19937 gen;          // Random number generator
+    float coupProbability;        // Probability of attempting a coup action
+    int maxTurns;                 // Maximum number of turns before ending the game
+    bool verboseMode;             // Whether to print detailed game information
 
 public:
+    /**
+     * Constructor for the GameSimulator
+     * @param g Reference to the Game instance
+     * @param players Reference to the vector of Player pointers
+     * @param verbose Whether to output detailed game information (default: true)
+     */
     GameSimulator(Game &g, vector<shared_ptr<Player>> &players, bool verbose = true)
         : game(g), players(players), gen(random_device{}()), coupProbability(0.5f), maxTurns(300), verboseMode(verbose) {}
 
+    /**
+     * Prints the current game status including turn and player information
+     * Only prints if verbose mode is enabled
+     */
     void printGameStatus() const
     {
         if (!verboseMode)
@@ -74,6 +98,13 @@ public:
              << endl;
     }
 
+    /**
+     * Prints information about an action performed by a player
+     * @param playerName Name of the player performing the action
+     * @param action Name of the action being performed
+     * @param target Optional target player of the action
+     * @param success Whether the action was successful
+     */
     void printAction(const string &playerName, const string &action, const string &target = "", bool success = true) const
     {
         if (!verboseMode)
@@ -90,11 +121,16 @@ public:
         cout << endl;
     }
 
+    /**
+     * Selects a random target player for an action
+     * @param currentPlayer The player who is performing the action
+     * @return Shared pointer to the selected target player, or nullptr if no valid target
+     */
     shared_ptr<Player> selectRandomTarget(shared_ptr<Player> &currentPlayer)
     {
         auto activePlayerNames = game.players();
 
-        // הסר את השחקן הנוכחי
+        // Remove the current player from potential targets
         activePlayerNames.erase(
             remove(activePlayerNames.begin(), activePlayerNames.end(), currentPlayer->name()),
             activePlayerNames.end());
@@ -102,31 +138,45 @@ public:
         if (activePlayerNames.empty())
             return nullptr;
 
+        // Randomly select a target from the remaining players
         uniform_int_distribution<> dist(0, activePlayerNames.size() - 1);
         string targetName = activePlayerNames[dist(gen)];
         for (const auto &player : players)
         {
             if (player->name() == targetName)
             {
-                // מצא את השחקן המתאים לפי השם
+                // Found the player with the matching name
                 return player;
             }
         }
-        return nullptr; // במקרה שלא נמצא שחקן מתאים
+        return nullptr; // In case no matching player is found
     }
 
+    /**
+     * Determines whether a player should attempt a coup action based on probability
+     * @return true if coup should be attempted, false otherwise
+     */
     bool shouldAttemptCoup() const
     {
         uniform_real_distribution<> dist(0.0, 1.0);
         return dist(gen) < coupProbability;
     }
 
+    /**
+     * Determines whether a player should attempt a special action based on probability
+     * @return true if special action should be attempted, false otherwise
+     */
     bool shouldAttemptSpecialAction() const
     {
         uniform_real_distribution<> dist(0.0, 1.0);
-        return dist(gen) < 0.4f; // 40% סיכוי לפעולה מיוחדת
+        return dist(gen) < 0.4f; // 40% chance for special action
     }
 
+    /**
+     * Executes an action that requires a target player
+     * @param player The player performing the action
+     * @param action The action to perform ("arrest", "sanction", or "coup")
+     */
     void executeTargetAction(shared_ptr<Player> &player, const string &action)
     {
         auto target = selectRandomTarget(player);
@@ -163,6 +213,11 @@ public:
         }
     }
 
+    /**
+     * Executes a basic action that doesn't require a target
+     * @param player The player performing the action
+     * @param action The action to perform ("gather", "tax", or "bribe")
+     */
     void executeBasicAction(shared_ptr<Player> &player, const string &action)
     {
         try
@@ -194,6 +249,10 @@ public:
         }
     }
 
+    /**
+     * Executes a special action based on the player's role
+     * @param player The player performing the action
+     */
     void executeSpecialAction(shared_ptr<Player> &player)
     {
         try
@@ -266,12 +325,12 @@ public:
                 }
             }
 
-            // אם לא הצליח לבצע פעולה מיוחדת, בצע gather
+            // If special action failed, perform gather as fallback
             executeBasicAction(player, "gather");
         }
         catch (const GameException &e)
         {
-            // fallback
+            // fallback action
             try
             {
                 executeBasicAction(player, "gather");
@@ -286,9 +345,13 @@ public:
         }
     }
 
+    /**
+     * Performs a random turn for the given player based on game state
+     * @param player The player whose turn it is
+     */
     void performRandomTurn(shared_ptr<Player> &player)
     {
-        // אם יש 10+ מטבעות - חובה coup
+        // If player has 10+ coins, they must perform a coup
         if (player->coins() >= 10)
         {
             auto target = selectRandomTarget(player);
@@ -311,7 +374,7 @@ public:
             }
         }
 
-        // אם יש 7+ מטבעות ונבחר לעשות coup
+        // If player has 7+ coins and randomly decides to coup
         if (player->coins() >= 7 && shouldAttemptCoup())
         {
             auto target = selectRandomTarget(player);
@@ -334,7 +397,7 @@ public:
             }
         }
 
-        // בחר סוג פעולה אקראית
+        // Choose a random action type
         uniform_int_distribution<> actionTypeDist(0, 2);
         int actionType = actionTypeDist(gen);
 
@@ -342,24 +405,27 @@ public:
         {
             if (actionType == 0)
             {
+                // Basic actions (gather, tax, bribe)
                 vector<string> basicActions = {"gather", "tax", "bribe"};
                 uniform_int_distribution<> dist(0, basicActions.size() - 1);
                 executeBasicAction(player, basicActions[dist(gen)]);
             }
             else if (actionType == 1)
             {
+                // Target actions (arrest, sanction, coup)
                 vector<string> targetActions = {"arrest", "sanction", "coup"};
                 uniform_int_distribution<> dist(0, targetActions.size() - 1);
                 executeTargetAction(player, targetActions[dist(gen)]);
             }
             else
             {
+                // Role-specific special actions
                 executeSpecialAction(player);
             }
         }
         catch (const GameException &e)
         {
-            // fallback אחרון
+            // Final fallback - try to gather
             try
             {
                 player->gather();
@@ -375,7 +441,11 @@ public:
         }
     }
 
-    void increaseAggression() // goal: make the game more aggressive
+    /**
+     * Increases the probability that players will attempt coup actions
+     * Used to make games more aggressive as they progress
+     */
+    void increaseAggression() 
     {
         coupProbability = min(0.9f, coupProbability + 0.2f);
         if (verboseMode)
@@ -384,6 +454,10 @@ public:
         }
     }
 
+    /**
+     * Runs a complete game with random AI players
+     * @return true if the game completed normally, false if it hit the turn limit
+     */
     bool runRandomGame()
     {
         cout << "\n🎮 Starting random game with " << players.size() << " players!" << endl;
@@ -401,10 +475,10 @@ public:
                 string currentPlayerName = game.getPlayer()->name();
                 auto currentPlayer = game.getPlayer();
 
-                // מעקב אחר מספר התורות לכל שחקן
+                // Track number of turns for each player
                 playerTurns[currentPlayerName]++;
 
-                // בדיקה אם אותו שחקן מקבל תורות רבים ברצף
+                // Check if the same player is getting multiple consecutive turns (potential deadlock)
                 if (currentPlayerName == lastPlayer)
                 {
                     samePlayerCount++;
@@ -413,7 +487,7 @@ public:
                         cout << "\n⚠️ Detected stalemate: " << currentPlayerName << " played "
                              << samePlayerCount << " consecutive turns!" << endl;
 
-                        // מצא את השחקן עם הכי הרבה מטבעות
+                        // Find the player with the most coins to declare as winner
                         string winnerName = "";
                         int maxCoins = -1;
 
@@ -427,7 +501,7 @@ public:
                             }
                         }
 
-                        // הסר את כל השחקנים חוץ מהמנצח
+                        // Remove all players except the winner
                         for (const auto &name : game.players())
                         {
                             if (name != winnerName)
@@ -460,13 +534,13 @@ public:
                     printGameStatus();
                 }
 
-                // הגבר אגרסיביות כל 25 תורות
+                // Increase aggression every 25 turns
                 if ((currentTurn + 1) % 25 == 0)
                 {
                     increaseAggression();
                 }
 
-                // השהיה קצרה לקריאה
+                // Short delay for readability
                 if (verboseMode)
                 {
                     this_thread::sleep_for(chrono::milliseconds(200));
@@ -496,93 +570,20 @@ public:
         }
     }
 
+    /**
+     * Sets the verbose mode for the simulator
+     * @param verbose true for detailed output, false for minimal output
+     */
     void setVerbose(bool verbose)
     {
         verboseMode = verbose;
     }
 };
 
-// void runDemoGame()
-// {
-//     cout << "=== Game Manual Demo ===" << endl;
-
-//     Game demoGame;
-//     auto governor = demoGame.createPlayer("Moses", Role::GOVERNOR);
-//     auto spy = demoGame.createPlayer("Joseph", Role::SPY);
-//     auto baron = demoGame.createPlayer("Michael", Role::BARON);
-//     auto general = demoGame.createPlayer("Roy", Role::GENERAL);
-//     auto judge = demoGame.createPlayer("Gilad", Role::JUDGE);
-
-//     try
-//     {
-//         // Short demo
-//         cout << "Players: ";
-//         for (const auto &name : demoGame.players())
-//         {
-//             cout << name << " ";
-//         }
-//         cout << endl;
-
-//         governor->gather();
-//         spy->gather();
-//         baron->gather();
-//         general->gather();
-//         judge->gather();
-
-//         cout << "After gather round:" << endl;
-//         cout << "Moses: " << governor->coins() << " coins" << endl;
-//         cout << "Joseph: " << spy->coins() << " coins" << endl;
-
-//         governor->tax(); // Governor gets 3
-//         cout << "Moses after tax: " << governor->coins() << " coins" << endl;
-//     }
-//     catch (const exception &e)
-//     {
-//         cout << "Demo error: " << e.what() << endl;
-//     }
-// }
-
-// void runMultipleRandomGames(int numGames)
-// {
-//     cout << "\n=== Running " << numGames << " random games ===" << endl;
-
-//     map<string, int> wins;
-//     int successfulGames = 0;
-
-//     for (int i = 0; i < numGames; i++)
-//     {
-//         cout << "\n--- Game " << (i + 1) << " ---" << endl;
-
-//         Game game;
-//         auto general = game.createPlayer("Dan", Role::GENERAL);
-//         auto merchant = game.createPlayer("Ron", Role::MERCHANT);
-//         auto governor = game.createPlayer("Liat", Role::GOVERNOR);
-//         auto spy = game.createPlayer("Noa", Role::SPY);
-//         auto baron = game.createPlayer("Amit", Role::BARON);
-//         auto judge = game.createPlayer("Michal", Role::JUDGE);
-
-//         vector<shared_ptr<Player>> &players = game.getPlayers();
-
-//         GameSimulator simulator(game, players, false); // Without verbose in multiple games
-
-//         if (simulator.runRandomGame())
-//         {
-//             successfulGames++;
-//             string winner = game.winner();
-//             wins[winner]++;
-//             cout << "Winner: " << winner << endl;
-//         }
-//     }
-
-//     cout << "\n=== Summary of " << numGames << " games ===" << endl;
-//     cout << "Games completed: " << successfulGames << "/" << numGames << endl;
-//     cout << "Wins by player:" << endl;
-//     for (const auto &pair : wins)
-//     {
-//         cout << pair.first << ": " << pair.second << " wins" << endl;
-//     }
-// }
-
+/**
+ * Creates and runs a random game with predefined players
+ * This function sets up a game with one player of each role
+ */
 void runRandomGame()
 {
     cout << "\n=== Running Random Game ===" << endl;
@@ -601,6 +602,11 @@ void runRandomGame()
     simulator.runRandomGame();
 }
 
+/**
+ * Main function - Entry point of the program
+ * Provides a menu to either run the GUI or a random game
+ * @return 0 for successful execution, 1 for errors
+ */
 int main()
 {
     cout << "=== Welcome to Coup! ===" << endl;
@@ -616,13 +622,13 @@ int main()
     {
         if (choice == 1)
         {
-            // הפעלת ממשק גרפי עם מסך הגדרות
+            // Run the graphical user interface
             CoupGUI gui;
             gui.run();            
         }
         else if (choice == 2)
         {
-            // משחק אקראי
+            // Run a random simulation game
             runRandomGame();
         }
         else

@@ -1,3 +1,4 @@
+//orel8155@gmail.com
 #pragma once
 
 #include <SFML/Graphics.hpp>
@@ -12,14 +13,21 @@
 #include "Game.hpp"
 #include "Player.hpp"
 
-// מצב משחק יחיד
+/**
+ * Game state enumeration
+ * Represents the current state of the GUI
+ */
 enum class GuiState
 {
-    SETUP,        // מסך הגדרות ראשוני
-    PLAYING,      // מצב משחק אמיתי
-    WIN_SCREEN    // מסך ניצחון
+    SETUP,        // Setup screen for configuring the game
+    PLAYING,      // Active gameplay state
+    WIN_SCREEN    // Winner display screen
 };
 
+/**
+ * Main GUI class for Coup game
+ * Handles all graphics, user interaction, and game state management
+ */
 class CoupGUI
 {
 private:
@@ -38,7 +46,7 @@ private:
     sf::RectangleShape gameBoard;
     sf::RectangleShape logPanel;
     sf::RectangleShape actionPanel;
-    sf::RectangleShape specialActionsPanel; // פאנל לפעולות מיוחדות
+    sf::RectangleShape specialActionsPanel; // Panel for special actions
 
     // GUI state
     GuiState currentState;
@@ -47,50 +55,60 @@ private:
     std::queue<std::string> notificationQueue;
     bool debugMode;
 
-    // Setup screen elements
+    /**
+     * Player setup data structure
+     * Stores configuration information for each player during setup
+     */
     struct PlayerSetup {
         std::string name;
         coup::Role role;
         sf::Text nameText;
         sf::RectangleShape nameInput;
-        sf::RectangleShape roleButtons[6]; // כפתורים לכל 6 התפקידים
+        sf::RectangleShape roleButtons[6]; // Buttons for all 6 roles
         sf::Text roleButtonTexts[6];
         bool nameCompleted;
         bool roleSelected;
     };
     
+    // Setup screen elements
     std::vector<PlayerSetup> setupPlayers;
     int numPlayersToSetup;
-    int currentSetupStep; // 0 = בחירת מספר שחקנים, 1+ = הגדרת שחקנים
-    sf::RectangleShape playerCountButtons[5]; // כפתורים לבחירת 2-6 שחקנים
+    int currentSetupStep; // 0 = player count selection, 1+ = player configuration
+    sf::RectangleShape playerCountButtons[5]; // Buttons for selecting 2-6 players
     sf::Text playerCountTexts[5];
     sf::RectangleShape startGameButton;
     sf::Text startGameButtonText;
     std::string currentInputText;
-    int activeInputPlayer; // איזה שחקן כרגע מזין שם
+    int activeInputPlayer; // Which player is currently inputting name
     
-    // משחק אמיתי
+    // Active game elements
     std::shared_ptr<coup::Game> game;
     std::vector<std::shared_ptr<coup::Player>> realPlayers;
     std::string currentPlayerName;
 
-    // מצב בחירת מטרה - פשוט יותר!
+    // Target selection state
     bool waitingForTarget;
-    std::string pendingActionName; // שם הפעולה שממתינה לביצוע
+    std::string pendingActionName; // Name of action waiting to be executed
     
-    // מנגנון דו-שלבי לפעולות מיוחדות
+    /**
+     * Special action state enumeration
+     * Represents the current state of special action selection process
+     */
     enum class SpecialActionState
     {
-        NONE,                   // אין פעולה מיוחדת
-        SELECTING_PERFORMER,    // בוחר מי מבצע את הפעולה
-        SELECTING_TARGET        // בוחר על מי מבצעים את הפעולה
+        NONE,                   // No special action in progress
+        SELECTING_PERFORMER,    // Selecting which player performs the action
+        SELECTING_TARGET        // Selecting target for the action
     };
     SpecialActionState specialActionState;
-    std::string pendingSpecialAction;        // שם הפעולה המיוחדת
-    coup::Role pendingSpecialActionRole;     // התפקיד הנדרש
-    std::shared_ptr<coup::Player> selectedPerformer; // השחקן שנבחר לבצע את הפעולה
+    std::string pendingSpecialAction;        // Name of special action
+    coup::Role pendingSpecialActionRole;     // Required role for the action
+    std::shared_ptr<coup::Player> selectedPerformer; // Player selected to perform the action
 
-    // כפתורי בחירת שחקנים
+    /**
+     * Player button structure
+     * Used for creating clickable player selection buttons
+     */
     struct PlayerButton
     {
         std::string playerName;
@@ -99,7 +117,10 @@ private:
     };
     std::vector<PlayerButton> playerButtons;
 
-    // נתונים לפעולות מיוחדות מחוץ לתור
+    /**
+     * Special action structure
+     * Defines out-of-turn special actions
+     */
     struct SpecialAction
     {
         std::string name;
@@ -109,7 +130,10 @@ private:
     };
     std::vector<SpecialAction> specialActions;
 
-    // נתונים לפעולות בסיסיות בתור
+    /**
+     * Basic action structure
+     * Defines standard in-turn actions
+     */
     struct BasicAction
     {
         std::string name;
@@ -119,11 +143,11 @@ private:
     };
     std::vector<BasicAction> basicActions;
 
-    // כפתור ריסט
+    // Reset button
     sf::RectangleShape resetButton;
     sf::Text resetButtonText;
     
-    // מסך ניצחון
+    // Win screen elements
     std::string winnerName;
     sf::RectangleShape winOverlay;
     sf::Text winTitle;
@@ -135,70 +159,89 @@ private:
 
     // Helper functions
     // void handleEvents();
-    void update();
-    void render();
-    void initializeSpecialActions(); // פונקציה לאתחול פעולות מיוחדות
-    void initializeBasicActions();   // פונקציה לאתחול פעולות בסיסיות
-    void initializeResetButton();    // פונקציה לאתחול כפתור ריסט
-    void initializeWinScreen();      // פונקציה לאתחול מסך ניצחון
-    void initializeSetupScreen();    // פונקציה לאתחול מסך הגדרות
-    // void initializeRealGame();       // פונקציה לאתחול משחק אמיתי עם שחקנים ברירת מחדל
-    void initializeGui();            // פונקציה משותפת לאתחול הממשק הגרפי
+    void update(); // Update the GUI
+    void render(); // Render the GUI
+    void initializeSpecialActions(); // Initialize special actions
+    void initializeBasicActions();   // Initialize basic actions
+    void initializeResetButton();    // Initialize reset button
+    void initializeWinScreen();      // Initialize win screen
+    void initializeSetupScreen();    // Initialize setup screen
+    // void initializeRealGame();       // Initialize game with default players
+    void initializeGui();            // Common function for GUI initialization
 
     // Drawing components
-    void drawPlayers();
-    void drawGameLog();
-    void drawActionPanel();
-    void drawNotifications();
-    void drawDebugInfo();
-    void drawSpecialActions(); // פונקציה לציור כפתורי פעולות מיוחדות
-    void drawPlayerButtons();  // פונקציה לציור כפתורי בחירת שחקנים
-    void drawResetButton();    // פונקציה לציור כפתור ריסט
-    void drawWinScreen();      // פונקציה לציור מסך ניצחון
-    void drawSetupScreen();    // פונקציה לציור מסך הגדרות
+    void drawPlayers(); // Draw players
+    void drawGameLog(); // Draw game log
+    void drawActionPanel(); // Draw action panel
+    void drawNotifications(); // Draw notifications
+    void drawDebugInfo(); // Draw debug info
+    void drawSpecialActions(); // Draw special action buttons
+    void drawPlayerButtons();  // Draw player selection buttons
+    void drawResetButton();    // Draw reset button
+    void drawWinScreen();      // Draw win screen
+    void drawSetupScreen();    // Draw setup screen
 
     // Utility functions
-    sf::Color getRoleColor(coup::Role role);
-    std::string getRoleName(coup::Role role);
-    void addLogMessage(const std::string &message);
-    void toggleDebugMode();
-    void handleSpecialActionClick(int actionIndex); // טיפול בלחיצה על פעולה מיוחדת
-    void handleBasicActionClick(int actionIndex);   // טיפול בלחיצה על פעולה בסיסית
-    void handleResetClick();                        // טיפול בלחיצה על כפתור ריסט
-    void handleWinScreenClick(sf::Vector2i mousePos); // טיפול בלחיצות במסך ניצחון
-    void handleSetupScreenClick(sf::Vector2i mousePos); // טיפול בלחיצות במסך הגדרות
-    void handleTextInput(sf::Uint32 unicode);       // טיפול בהזנת טקסט
+    sf::Color getRoleColor(coup::Role role); // Get role color
+    std::string getRoleName(coup::Role role); // Get role name
+    void addLogMessage(const std::string &message); // Add log message
+    void toggleDebugMode(); // Toggle debug mode
+    void handleSpecialActionClick(int actionIndex); // Handle click on special action
+    void handleBasicActionClick(int actionIndex);   // Handle click on basic action
+    void handleResetClick();                        // Handle click on reset button
+    void handleWinScreenClick(sf::Vector2i mousePos); // Handle clicks on win screen
+    void handleSetupScreenClick(sf::Vector2i mousePos); // Handle clicks on setup screen
+    void handleTextInput(sf::Uint32 unicode);       // Handle text input
     
     // Game management functions
-    void resetGame();          // איפוס המשחק מחדש
-    void checkForWinner();     // בדיקה אם יש מנצח
-    void startNewGame();       // התחלת משחק חדש
-    void createGameFromSetup(); // יצירת משחק מהגדרות
+    void resetGame();          // Reset the game
+    void checkForWinner();     // Check if there's a winner
+    void startNewGame();       // Start a new game
+    void createGameFromSetup(); // Create game from setup configuration
     
-    // פונקציות לביצוע פעולות עם בחירת מטרה
+    // Functions for actions that require target selection
     void executeArrest(std::shared_ptr<coup::Player> targetPlayer);
     void executeSanction(std::shared_ptr<coup::Player> targetPlayer);
     void executeCoup(std::shared_ptr<coup::Player> targetPlayer);
     
-    // פונקציות עזר לכפתורי שחקנים
-    void createPlayerButtons();
-    void clearPlayerButtons();
+    // Helper functions for player buttons
+    void createPlayerButtons(); // Create player buttons
+    void clearPlayerButtons(); // Clear player buttons
     
-    // פונקציות חדשות למנגנון דו-שלבי
-    void startSpecialActionSelection(const std::string& actionName, coup::Role requiredRole);
-    void createPerformerButtons(coup::Role requiredRole);
-    void createTargetButtons(std::shared_ptr<coup::Player> performer);
-    void executeSpecialAction(std::shared_ptr<coup::Player> performer, std::shared_ptr<coup::Player> target = nullptr);
-    void cancelSpecialActionSelection();
+    // Functions for two-stage action mechanism
+    void startSpecialActionSelection(const std::string& actionName, coup::Role requiredRole); // Start special action selection
+    void createPerformerButtons(coup::Role requiredRole); // Create performer buttons
+    void createTargetButtons(std::shared_ptr<coup::Player> performer); // Create target buttons
+    void executeSpecialAction(std::shared_ptr<coup::Player> performer, std::shared_ptr<coup::Player> target = nullptr); // Execute special action
+    void cancelSpecialActionSelection(); // Cancel special action selection
 
 public:
-    CoupGUI();  // קונסטרקטור שמתחיל במסך הגדרות
+    /**
+     * Default constructor
+     * Initializes the GUI starting with the setup screen
+     */
+    CoupGUI();
     
-    // קונסטרקטור שמקבל משחק ושחקנים קיימים (לא בשימוש כרגע)
+    /**
+     * Alternative constructor
+     * Takes existing game and players (currently not used)
+     */
     CoupGUI(std::shared_ptr<coup::Game> existingGame, std::vector<std::shared_ptr<coup::Player>> existingPlayers);
     
+    /**
+     * Destructor
+     */
     ~CoupGUI();
 
+    /**
+     * Main game loop
+     * Handles events, updates, and rendering
+     */
     void run();
+    
+    /**
+     * Adds a notification message to the queue
+     * @param message The notification text to display
+     */
     void addNotification(const std::string &message);
 };

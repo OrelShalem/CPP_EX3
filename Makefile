@@ -1,86 +1,92 @@
-# קובץ Makefile למשחק coup
+# Makefile for the Coup card game
+# This Makefile contains build configurations for compiling and testing the Coup game
 
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -g
-VALGRIND_FLAGS = --tool=memcheck --leak-check=full --show-possibly-lost=yes --show-reachable=yes --num-callers=20 --track-origins=yes
-SFML_LIBS = -lsfml-graphics -lsfml-window -lsfml-system -lsfml-audio
+# Compiler and flags definitions
+CXX = g++                  # Using g++ as the C++ compiler
+CXXFLAGS = -std=c++17 -Wall -g  # Compiler flags: C++17 standard, show all warnings, include debug info
+VALGRIND_FLAGS = --tool=memcheck --leak-check=full --show-possibly-lost=yes --show-reachable=yes --num-callers=20 --track-origins=yes  # Memory checking configuration
+SFML_LIBS = -lsfml-graphics -lsfml-window -lsfml-system -lsfml-audio  # SFML libraries for the graphical interface
 
-# תיקיות
-SRC_DIR = src
-TEST_DIR = test
-OBJ_DIR = obj
-BIN_DIR = bin
-ASSETS_DIR = assets
+# Directory structure
+SRC_DIR = src              # Source code directory
+TEST_DIR = test            # Test files directory
+OBJ_DIR = obj              # Compiled object files directory
+BIN_DIR = bin              # Binary executables directory
+ASSETS_DIR = assets        # Game assets directory
 
-# יצירת התיקיות אם הן לא קיימות
+# Create directories if they don't exist
+# The shell command creates the necessary directories at the beginning of the build process
 $(shell mkdir -p $(OBJ_DIR) $(BIN_DIR) $(ASSETS_DIR)/fonts)
 
-# קבצי מקור
-MAIN_SRC = $(SRC_DIR)/main.cpp
-# הקובץ עם ה-DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN חייב להופיע ראשון
-TEST_SRC = $(TEST_DIR)/EdgeCaseTest.cpp $(TEST_DIR)/GameTest.cpp $(TEST_DIR)/PlayerTest.cpp $(TEST_DIR)/RolesTest.cpp
-GUI_SRC = $(SRC_DIR)/CoupGUI.cpp
+# Source files definitions
+MAIN_SRC = $(SRC_DIR)/main.cpp  # Main application source file
+# The file with DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN must appear first in the test source list
+TEST_SRC = $(TEST_DIR)/EdgeCaseTest.cpp $(TEST_DIR)/GameTest.cpp $(TEST_DIR)/PlayerTest.cpp $(TEST_DIR)/RolesTest.cpp  # Test source files
+GUI_SRC = $(SRC_DIR)/CoupGUI.cpp  # GUI-related source file
 
-# קבצי אובייקט
-SRC_OBJ = $(OBJ_DIR)/Player.o $(OBJ_DIR)/Game.o
-ROLE_OBJ = $(OBJ_DIR)/Baron.o $(OBJ_DIR)/General.o $(OBJ_DIR)/Governor.o $(OBJ_DIR)/Judge.o $(OBJ_DIR)/Merchant.o $(OBJ_DIR)/Spy.o
-MAIN_OBJ = $(OBJ_DIR)/main.o
-GUI_OBJ = $(OBJ_DIR)/CoupGUI.o
-# EdgeCaseTest.o חייב להופיע ראשון כי הוא מכיל את ה-main
-TEST_OBJ = $(OBJ_DIR)/EdgeCaseTest.o $(OBJ_DIR)/GameTest.o $(OBJ_DIR)/PlayerTest.o $(OBJ_DIR)/RolesTest.o
+# Object files definitions
+SRC_OBJ = $(OBJ_DIR)/Player.o $(OBJ_DIR)/Game.o  # Core game objects
+ROLE_OBJ = $(OBJ_DIR)/Baron.o $(OBJ_DIR)/General.o $(OBJ_DIR)/Governor.o $(OBJ_DIR)/Judge.o $(OBJ_DIR)/Merchant.o $(OBJ_DIR)/Spy.o  # Role-specific objects
+MAIN_OBJ = $(OBJ_DIR)/main.o  # Main program object
+GUI_OBJ = $(OBJ_DIR)/CoupGUI.o  # GUI object
+# EdgeCaseTest.o must be first because it contains the main function for the test suite
+TEST_OBJ = $(OBJ_DIR)/EdgeCaseTest.o $(OBJ_DIR)/GameTest.o $(OBJ_DIR)/PlayerTest.o $(OBJ_DIR)/RolesTest.o  # Test objects
 
-# יעדים
-all: Main test
+# Build targets
+all: Main test  # Default target builds and runs both the main program and tests
 
-# הרצת קובץ ההדגמה
-Main: $(BIN_DIR)/Main
-	$(BIN_DIR)/Main
+# Run the demo file
+Main: $(BIN_DIR)/Main  # Build the main program
+	$(BIN_DIR)/Main    # Run the main program
 
-# הרצת בדיקות היחידה
-test: $(BIN_DIR)/test
-	$(BIN_DIR)/test
+# Run the unit tests
+test: $(BIN_DIR)/test  # Build the test program
+	$(BIN_DIR)/test    # Run the test program
 
-# בדיקת זליגת זיכרון - בודק גם Main וגם טסטים
+# Memory leak checks - tests both Main and test executables
 valgrind: $(BIN_DIR)/Main $(BIN_DIR)/test
-	@echo "=== Valgrind check for Main ==="
-	valgrind $(VALGRIND_FLAGS) $(BIN_DIR)/Main
+	@echo "=== Valgrind check for Main ==="  # Message indicating start of main program check
+	valgrind $(VALGRIND_FLAGS) $(BIN_DIR)/Main  # Check main program for memory leaks
 	@echo ""
-	@echo "=== Valgrind check for tests ==="
-	valgrind $(VALGRIND_FLAGS) $(BIN_DIR)/test
+	@echo "=== Valgrind check for tests ==="  # Message indicating start of test program check
+	valgrind $(VALGRIND_FLAGS) $(BIN_DIR)/test  # Check test program for memory leaks
 
-# קימפול תוכנית ראשית
+# Compile main program
 $(BIN_DIR)/Main: $(SRC_OBJ) $(ROLE_OBJ) $(MAIN_OBJ) $(GUI_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(SFML_LIBS)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(SFML_LIBS)  # Link all objects into the main executable with SFML libraries
 
-# קימפול בדיקות
+# Compile test program
 $(BIN_DIR)/test: $(SRC_OBJ) $(ROLE_OBJ) $(TEST_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@  # Link all test objects into the test executable
 
-# כללי קימפול כלליים
+# General compilation rules for source files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@  # Compile source files to object files
 
+# Compilation rule for role-specific source files in the Roles subdirectory
 $(OBJ_DIR)/%.o: $(SRC_DIR)/Roles/%.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@  # Compile role files to object files
 
+# Compilation rule for test source files
 $(OBJ_DIR)/%.o: $(TEST_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) -I$(TEST_DIR) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -I$(TEST_DIR) -c $< -o $@  # Compile test files to object files with test directory in include path
 
-# ניקוי קבצים לא רלוונטיים
+# Clean target to remove all generated files
 clean:
-	rm -rf $(OBJ_DIR)/* $(BIN_DIR)/*
+	rm -rf $(OBJ_DIR)/* $(BIN_DIR)/*  # Remove all object and binary files
 
-# הגדרות תלויות
+# Dependency specifications for specific files
+# These ensure that files are recompiled when their dependencies change
 $(OBJ_DIR)/main.o: $(SRC_DIR)/main.cpp $(SRC_DIR)/Game.hpp $(SRC_DIR)/Player.hpp $(SRC_DIR)/CoupGUI.hpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@  # Compile main.cpp with its dependencies
 
 $(OBJ_DIR)/Game.o: $(SRC_DIR)/Game.cpp $(SRC_DIR)/Game.hpp $(SRC_DIR)/Player.hpp $(SRC_DIR)/GameExceptions.hpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@  # Compile Game.cpp with its dependencies
 
 $(OBJ_DIR)/Player.o: $(SRC_DIR)/Player.cpp $(SRC_DIR)/Player.hpp $(SRC_DIR)/Game.hpp $(SRC_DIR)/GameExceptions.hpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@  # Compile Player.cpp with its dependencies
 
 $(OBJ_DIR)/CoupGUI.o: $(SRC_DIR)/CoupGUI.cpp $(SRC_DIR)/CoupGUI.hpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@  # Compile CoupGUI.cpp with its dependencies
 
-.PHONY: all Main test valgrind clean 
+.PHONY: all Main test valgrind clean  # Declare targets that don't produce files with the target name

@@ -1,101 +1,166 @@
+//orel8155@gmail.com
+
+/**
+ * @file CoupGUI.cpp
+ * @brief Implementation of the graphical user interface for the Coup game
+ * 
+ * This file contains the complete implementation of the CoupGUI class which handles
+ * all graphical rendering, user input, and game state management for the Coup card game.
+ * 
+ * Key Features:
+ * - Complete game setup flow (player count, names, roles)
+ * - Real-time game visualization with player cards and status
+ * - Interactive buttons for all game actions (basic and special)
+ * - Game log and notification system
+ * - Win screen with game restart options
+ *
+ * 
+ * @author Orel
+ * @date 2025
+ */
+
 #include "CoupGUI.hpp"
 #include <iostream>
 #include <sstream>
 #include <cmath>
-
+/**
+ * @brief Initializes all graphical user interface components for the Coup game
+ * 
+ * Sets up the main game window, fonts, background elements, game board, panels,
+ * role colors, and initializes all interactive components. This method must be
+ * called before any rendering operations.
+ * 
+ * Creates:
+ * - Main game window (1280x720) with 60 FPS limit
+ * - Game board panel for player displays
+ * - Action panel for basic game actions
+ * - Special actions panel for role-specific actions
+ * - Log panel for game history
+ * - Color scheme for different player roles
+ * 
+ * @throws std::runtime_error if font loading fails
+ */
 void CoupGUI::initializeGui()
 {
+    // Create main window with title "Coup - Game" and specific styles
     window.create(sf::VideoMode(1280, 720), "Coup - Game", sf::Style::Titlebar | sf::Style::Close);
     window.setFramerateLimit(60);
     window.setVerticalSyncEnabled(true);
 
+    // Load the main font from file - used for all text elements
     if (!mainFont.loadFromFile("assets/fonts/Heebo-Regular.ttf"))
     {
         std::cerr << "Failed to load main font" << std::endl;
     }
     titleFont = mainFont;
 
-    // אתחול רקע פשוט
+    // Initialize simple background
     background.setSize(sf::Vector2f(1280, 720));
-    background.setFillColor(sf::Color(20, 30, 48)); // כחול כהה אלגנטי
+    background.setFillColor(sf::Color(20, 30, 48)); // Elegant dark blue
 
-    // אתחול לוח המשחק
+    // Initialize game board - the main area where player cards are displayed
     gameBoard.setSize(sf::Vector2f(900, 500));
     gameBoard.setPosition(30, 100);
     gameBoard.setFillColor(sf::Color(30, 40, 60));
     gameBoard.setOutlineThickness(2);
     gameBoard.setOutlineColor(sf::Color(100, 120, 180));
 
-    // אתחול לוח יומן
+    // Initialize log panel - displays game history and events
     logPanel.setSize(sf::Vector2f(280, 280));
     logPanel.setPosition(970, 100);
     logPanel.setFillColor(sf::Color(25, 35, 55));
     logPanel.setOutlineThickness(2);
     logPanel.setOutlineColor(sf::Color(100, 120, 180));
 
-    // אתחול לוח פעולות
+    // Initialize action panel - contains buttons for basic game actions
     actionPanel.setSize(sf::Vector2f(1220, 80));
     actionPanel.setPosition(30, 620);
     actionPanel.setFillColor(sf::Color(25, 35, 55));
     actionPanel.setOutlineThickness(2);
     actionPanel.setOutlineColor(sf::Color(100, 120, 180));
 
-    // אתחול פאנל פעולות מיוחדות
+    // Initialize special actions panel - contains buttons for role-specific actions
     specialActionsPanel.setSize(sf::Vector2f(280, 180));
     specialActionsPanel.setPosition(970, 400);
     specialActionsPanel.setFillColor(sf::Color(25, 35, 55));
     specialActionsPanel.setOutlineThickness(2);
     specialActionsPanel.setOutlineColor(sf::Color(100, 120, 180));
 
-    // יצירת צבעים לפי תפקידים
-    roleColors[coup::Role::GENERAL] = sf::Color(180, 40, 40);  // אדום
-    roleColors[coup::Role::GOVERNOR] = sf::Color(40, 80, 180); // כחול
-    roleColors[coup::Role::SPY] = sf::Color(100, 100, 100);    // אפור
-    roleColors[coup::Role::BARON] = sf::Color(180, 140, 40);   // זהב
-    roleColors[coup::Role::JUDGE] = sf::Color(80, 40, 100);    // סגול
-    roleColors[coup::Role::MERCHANT] = sf::Color(40, 140, 40); // ירוק
+    // Create colors for different player roles
+    roleColors[coup::Role::GENERAL] = sf::Color(180, 40, 40);  // Red
+    roleColors[coup::Role::GOVERNOR] = sf::Color(40, 80, 180); // Blue
+    roleColors[coup::Role::SPY] = sf::Color(100, 100, 100);    // Gray
+    roleColors[coup::Role::BARON] = sf::Color(180, 140, 40);   // Gold
+    roleColors[coup::Role::JUDGE] = sf::Color(80, 40, 100);    // Purple
+    roleColors[coup::Role::MERCHANT] = sf::Color(40, 140, 40); // Green
 
-    // אתחול כפתורי פעולות מיוחדות
+    // Initialize special action buttons
     initializeSpecialActions();
 
-    // אתחול כפתורי פעולות בסיסיות
+    // Initialize basic action buttons
     initializeBasicActions();
     
-    // אתחול כפתור ריסט
+    // Initialize reset button
     initializeResetButton();
     
-    // אתחול מסך ניצחון
+    // Initialize win screen
     initializeWinScreen();
 }
-
-// קונסטרקטור רגיל - מתחיל במסך הגדרות
+/**
+ * @brief Default constructor - starts with game setup screen
+ * 
+ * Initializes the CoupGUI in setup mode with all default values:
+ * - Sets the initial state to SETUP (first game screen)
+ * - Initializes all game state variables to their defaults
+ * - Prepares for player configuration
+ * 
+ * This constructor is used when starting a new game from scratch,
+ * allowing the players to configure the game before playing.
+ */
 CoupGUI::CoupGUI()
-    : currentState(GuiState::SETUP),
-      globalClock(),
-      debugMode(false),
-      numPlayersToSetup(0),
-      currentSetupStep(0),
-      activeInputPlayer(-1),
-      game(nullptr),
-      waitingForTarget(false),
-      pendingActionName(""),
-      specialActionState(SpecialActionState::NONE),
-      pendingSpecialAction(""),
-      pendingSpecialActionRole(coup::Role::GENERAL),
-      selectedPerformer(nullptr)
+    : currentState(GuiState::SETUP),      // Start in setup screen
+      globalClock(),                       // Initialize timer
+      debugMode(false),                    // Debug mode off by default
+      numPlayersToSetup(0),                // No players configured yet
+      currentSetupStep(0),                 // First step of setup (selecting player count)
+      activeInputPlayer(-1),               // No player input active
+      game(nullptr),                       // No game instance yet
+      waitingForTarget(false),             // Not waiting for target selection
+      pendingActionName(""),               // No action pending
+      specialActionState(SpecialActionState::NONE),  // No special action in progress
+      pendingSpecialAction(""),            // No special action pending
+      pendingSpecialActionRole(coup::Role::GENERAL), // Default role (placeholder)
+      selectedPerformer(nullptr)           // No performer selected
 {
     std::cout << "Initializing Coup Game Setup Screen" << std::endl;
     
-    // אתחול הממשק הגרפי
+    // Initialize the graphical interface
     initializeGui();
     
-    // אתחול מסך הגדרות
+    // Initialize the setup screen components
     initializeSetupScreen();
 }
 
 
 
-// קונסטרקטור שמקבל משחק ושחקנים קיימים
+/**
+ * @brief Constructor for starting with existing game and players
+ * 
+ * @param existingGame Shared pointer to an already initialized Game object
+ * @param existingPlayers Vector of Player objects that will participate in the game
+ * 
+ * This constructor initializes the GUI directly with an existing game state.
+ * It sets the current state to PLAYING, bypassing the setup screen, and uses
+ * the provided game and player objects to populate the game state.
+ * 
+ * The constructor:
+ * - Sets the initial state to PLAYING mode
+ * - Initializes the GUI components
+ * - Sets the current player from the game state
+ * - Adds initial log messages to inform the player about the game start
+ * 
+ * This is useful for testing or when loading a saved game state.
+ */
 CoupGUI::CoupGUI(std::shared_ptr<coup::Game> existingGame, std::vector<std::shared_ptr<coup::Player>> existingPlayers)
     : currentState(GuiState::PLAYING),
       globalClock(),
@@ -106,15 +171,15 @@ CoupGUI::CoupGUI(std::shared_ptr<coup::Game> existingGame, std::vector<std::shar
       pendingActionName(""),
       specialActionState(SpecialActionState::NONE),
       pendingSpecialAction(""),
-      pendingSpecialActionRole(coup::Role::GENERAL), // ערך ברירת מחדל
+      pendingSpecialActionRole(coup::Role::GENERAL), // Default value
       selectedPerformer(nullptr)
 {
     std::cout << "Initializing Coup Game with provided players" << std::endl;
     
-    // אתחול הממשק הגרפי
+    // Initialize the graphical interface
     initializeGui();
     
-    // הגדרת השחקן הנוכחי
+    // Set the current player
     if (!realPlayers.empty()) {
         auto players = game->players();
         if (!players.empty()) {
@@ -124,30 +189,63 @@ CoupGUI::CoupGUI(std::shared_ptr<coup::Game> existingGame, std::vector<std::shar
         }
     }
     
-    // הוספת הודעת פתיחה
+    // Add opening messages
     addLogMessage("Game started with " + std::to_string(realPlayers.size()) + " players");
     addNotification("Game started! " + currentPlayerName + "'s turn");
 }
 
+/**
+ * @brief Destructor - cleans up resources
+ * 
+ * Currently no dynamic resources need explicit cleanup as all resources are managed
+ * by smart pointers or SFML's automatic resource management. The SFML window
+ * will be automatically closed and fonts will be properly deallocated.
+ * 
+ * Future considerations:
+ * - If file I/O or network connections are added, cleanup would be needed here
+ * - If custom memory allocation is used, deallocation should be added
+ */
 CoupGUI::~CoupGUI()
 {
-    // אין משאבים דינמיים לנקות
+    // No dynamic resources to clean up
 }
 
 
+/**
+ * @brief Initializes special action buttons for role-specific abilities
+ * 
+ * Creates interactive buttons for each role's unique special abilities that can be
+ * performed out of turn. Each action requires a specific role to perform and may
+ * require target selection.
+ * 
+ * Special Actions Created:
+ * - Governor: "Undo Tax" - Reverses a tax action
+ * - Spy: "see and block arrest" - Views coins and blocks arrest actions  
+ * - Judge: "Undo Bribe" - Reverses a bribe action
+ * - General: "Undo Coup" - Reverses a coup action
+ * - Baron: "Invest" - Generates additional income
+ * 
+ * Button Layout:
+ * - All buttons positioned vertically in the special actions panel
+ * - Light blue color scheme for consistency
+ * - 35 pixel spacing between buttons
+ * - Text centered within each button
+ * 
+ * @note Buttons are only displayed when a player with the required role is active
+ */
 void CoupGUI::initializeSpecialActions()
 {
-    // יצירת רשימת פעולות מיוחדות
+    // Create list of special actions
     specialActions.clear();
 
-    // מיקום ומידות הכפתורים
+    // Position and size of the buttons
     float buttonWidth = 150;
     float buttonHeight = 30;
     float startX = 985;
     float startY = 450;
     float spacing = 35;
 
-    // יצירת הכפתורים לפי התפקידים
+    // Create buttons for each role's special abilities
 
     // Governor - Undo Tax
     SpecialAction governorAction;
@@ -241,24 +339,49 @@ void CoupGUI::initializeSpecialActions()
     
 }
 
+/**
+ * @brief Initializes basic action buttons available to all players
+ * 
+ * Creates six main action buttons that form the core gameplay mechanics.
+ * Actions are divided into two categories with distinct visual styling:
+ * economic actions (blue) and attack actions (orange).
+ * 
+ * Economic Actions (Blue):
+ * - Gather: Collect 1 coin (always available)
+ * - Tax: Collect 2 coins (role-based ability, challengeable)
+ * - Bribe: Influence other players (role-based ability)
+ * 
+ * Attack Actions (Orange):
+ * - Arrest: Eliminate a player's role (blockable by Spy)
+ * - Sanction: Apply economic penalty to target player
+ * - Coup: Expensive but powerful elimination (costs 7 coins)
+ * 
+ * Button Layout:
+ * - Horizontally centered in the action panel
+ * - 120px width, 40px height per button
+ * - 10px spacing between buttons
+ * - Color-coded by action type
+ * 
+ * @note Attack actions require target selection after clicking
+ */
 void CoupGUI::initializeBasicActions()
 {
-    // יצירת רשימת פעולות בסיסיות
+    // Create list of basic actions
     basicActions.clear();
 
-    // מיקום ומידות הכפתורים - כל הכפתורים בשורה אחת
+    // Position and size of the buttons - all buttons in one row
     float buttonWidth = 120;
     float buttonHeight = 40;
-    float totalWidth = 6 * buttonWidth + 5 * 10;          // 6 כפתורים + 5 רווחים של 10 פיקסלים
-    float startX = (window.getSize().x - totalWidth) / 2; // מרכוז הכפתורים
-    float startY = 640;                                   // מיקום הכפתורים בפאנל הפעולות
-    float spacing = buttonWidth + 10;                     // מרווח בין הכפתורים
+    float totalWidth = 6 * buttonWidth + 5 * 10;          // 6 buttons + 5 spaces of 10 pixels
+    float startX = (window.getSize().x - totalWidth) / 2; // Center of the buttons
+    float startY = 640;                                   // Position of the buttons in the action panel
+    float spacing = buttonWidth + 10;                     // Space between the buttons
 
-    // צבעים לכפתורים
-    sf::Color blueButtonColor(70, 130, 180);  // כחול לפעולות כלכליות
-    sf::Color orangeButtonColor(180, 95, 60); // כתום לפעולות תקיפה
+    // Colors for the buttons
+    sf::Color blueButtonColor(70, 130, 180);  // Blue for economic actions
+    sf::Color orangeButtonColor(180, 95, 60); // Orange for attack actions
 
-    // פעולות כלכליות
+    // Economic actions
 
     // 1. Gather
     BasicAction gatherAction;
@@ -317,7 +440,7 @@ void CoupGUI::initializeBasicActions()
 
     basicActions.push_back(bribeAction);
 
-    // פעולות תקיפה
+    // Attack actions
 
     // 4. Arrest
     BasicAction arrestAction;
@@ -377,17 +500,38 @@ void CoupGUI::initializeBasicActions()
     basicActions.push_back(coupAction);
 }
 
+/**
+ * @brief Initializes the reset game button
+ * 
+ * Creates a red reset button positioned in the top-right corner of the screen.
+ * This button allows players to restart the current game with the same player
+ * configuration (names and roles) but reset all game state.
+ * 
+ * Button Properties:
+ * - Red color (200, 60, 60) to indicate destructive action
+ * - 100x30 pixel size for visibility without taking too much space
+ * - White text and border for contrast
+ * - Positioned at (1150, 20) - top-right corner
+ * 
+ * Functionality:
+ * - Preserves player names and roles
+ * - Resets all coin counts to starting values
+ * - Clears game log and action history
+ * - Returns to first player's turn
+ * 
+ * @see resetGame() for the actual reset implementation
+ */
 void CoupGUI::initializeResetButton()
 {
-    // כפתור ריסט
+    // Reset button
     float buttonWidth = 100;
     float buttonHeight = 30;
-    float buttonX = 1150;  // בפינה הימנית העליונה
+    float buttonX = 1150;  // Top-right corner
     float buttonY = 20;
 
     resetButton.setSize(sf::Vector2f(buttonWidth, buttonHeight));
     resetButton.setPosition(buttonX, buttonY);
-    resetButton.setFillColor(sf::Color(200, 60, 60)); // אדום
+    resetButton.setFillColor(sf::Color(200, 60, 60)); // Red
     resetButton.setOutlineThickness(2);
     resetButton.setOutlineColor(sf::Color::White);
 
@@ -402,32 +546,32 @@ void CoupGUI::initializeResetButton()
 }
 
 void CoupGUI::initializeWinScreen()
-{
-    // רקע חצי שקוף
+{   
+    // Half-transparent black background
     winOverlay.setSize(sf::Vector2f(1280, 720));
     winOverlay.setPosition(0, 0);
-    winOverlay.setFillColor(sf::Color(0, 0, 0, 180)); // שחור חצי שקוף
+    winOverlay.setFillColor(sf::Color(0, 0, 0, 180)); // Half-transparent black
 
-    // כותרת ניצחון
+    // Win title
     winTitle.setFont(mainFont);
     winTitle.setCharacterSize(48);
     winTitle.setFillColor(sf::Color::Yellow);
     winTitle.setStyle(sf::Text::Bold);
 
-    // כותרת משנה
+    // Win subtitle
     winSubtitle.setFont(mainFont);
     winSubtitle.setCharacterSize(24);
     winSubtitle.setFillColor(sf::Color::White);
 
-    // כפתור משחק חדש
+    // New game button
     float buttonWidth = 150;
     float buttonHeight = 50;
-    float centerX = 640; // מרכז המסך
+    float centerX = 640; // Center of the screen
     float centerY = 400;
 
     newGameButton.setSize(sf::Vector2f(buttonWidth, buttonHeight));
     newGameButton.setPosition(centerX - buttonWidth - 20, centerY);
-    newGameButton.setFillColor(sf::Color(70, 130, 180)); // כחול
+    newGameButton.setFillColor(sf::Color(70, 130, 180)); // Blue
     newGameButton.setOutlineThickness(3);
     newGameButton.setOutlineColor(sf::Color::White);
 
@@ -436,10 +580,10 @@ void CoupGUI::initializeWinScreen()
     newGameButtonText.setCharacterSize(20);
     newGameButtonText.setFillColor(sf::Color::White);
 
-    // כפתור יציאה
+    // Exit button
     exitButton.setSize(sf::Vector2f(buttonWidth, buttonHeight));
     exitButton.setPosition(centerX + 20, centerY);
-    exitButton.setFillColor(sf::Color(180, 60, 60)); // אדום
+    exitButton.setFillColor(sf::Color(180, 60, 60)); // Red
     exitButton.setOutlineThickness(3);
     exitButton.setOutlineColor(sf::Color::White);
 
@@ -451,7 +595,7 @@ void CoupGUI::initializeWinScreen()
 
 void CoupGUI::initializeSetupScreen()
 {
-    // אתחול כפתורי בחירת מספר שחקנים (2-6)
+    // Initialize player count selection buttons (2-6)
     float buttonWidth = 80;
     float buttonHeight = 60;
     float startX = 350;
@@ -459,7 +603,7 @@ void CoupGUI::initializeSetupScreen()
     float spacingX = 120;
     
     for (int i = 0; i < 5; i++) {
-        int playerCount = i + 2; // 2-6 שחקנים
+        int playerCount = i + 2; // 2-6 players
         
         playerCountButtons[i].setSize(sf::Vector2f(buttonWidth, buttonHeight));
         playerCountButtons[i].setPosition(startX + i * spacingX, startY);
@@ -477,10 +621,10 @@ void CoupGUI::initializeSetupScreen()
         );
     }
     
-    // כפתור התחלת משחק
+    // Start game button
     startGameButton.setSize(sf::Vector2f(200, 60));
     startGameButton.setPosition(540, 600);
-    startGameButton.setFillColor(sf::Color(60, 180, 60)); // ירוק
+    startGameButton.setFillColor(sf::Color(60, 180, 60)); // Green
     startGameButton.setOutlineThickness(3);
     startGameButton.setOutlineColor(sf::Color::White);
     
@@ -494,6 +638,15 @@ void CoupGUI::initializeSetupScreen()
     );
 }
 
+/**
+ * Main game loop function that runs the entire game
+ * 
+ * This function:
+ * - Handles all event processing
+ * - Updates game state
+ * - Renders each frame
+ * - Manages error handling through try-catch blocks
+ */
 void CoupGUI::run()
 {
     std::cout << "Starting Coup game" << std::endl;
@@ -504,7 +657,7 @@ void CoupGUI::run()
         try {
             frameClock.restart();
 
-            // טיפול באירועים
+            // Process all window events
             sf::Event event;
             while (window.pollEvent(event))
             {
@@ -518,21 +671,21 @@ void CoupGUI::run()
                 {
                     if (event.key.code == sf::Keyboard::F3)
                     {
-                        // שינוי מצב דיבאג
+                        // Toggle debug mode
                         toggleDebugMode();
                     }
                     else if (event.key.code == sf::Keyboard::Escape)
                     {
                         if (currentState == GuiState::SETUP && activeInputPlayer >= 0)
                         {
-                            // ביטול הזנת שם
+                            // Cancel name input
                             activeInputPlayer = -1;
                             currentInputText = "";
                             addNotification("הזנת השם בוטלה");
                         }
                         else if (waitingForTarget)
                         {
-                            // ביטול בחירת מטרה לפעולות בסיסיות
+                            // Cancel target selection for basic actions
                             waitingForTarget = false;
                             pendingActionName = "";
                             clearPlayerButtons();
@@ -540,39 +693,39 @@ void CoupGUI::run()
                         }
                         else if (specialActionState != SpecialActionState::NONE)
                         {
-                            // ביטול פעולה מיוחדת
+                            // Cancel special action
                             cancelSpecialActionSelection();
                             addNotification("Special action cancelled");
                         }
                     }
                 }
 
-                // טיפול בהזנת טקסט
+                // Handle text input for name entry
                 if (event.type == sf::Event::TextEntered && currentState == GuiState::SETUP)
                 {
                     handleTextInput(event.text.unicode);
                 }
 
-                // טיפול באירועי עכבר
+                // Handle mouse click events
                 if (event.type == sf::Event::MouseButtonPressed)
                 {
                     sf::Vector2i mousePos = sf::Mouse::getPosition(window);
 
-                    // === טיפול במסך הגדרות ===
+                    // === Setup screen interaction handling ===
                     if (currentState == GuiState::SETUP)
                     {
                         handleSetupScreenClick(mousePos);
-                        continue; // לא מטפלים בכפתורים אחרים במסך הגדרות
+                        continue; // Skip other button processing in setup mode
                     }
 
-                    // === טיפול במסך ניצחון ===
+                    // === Win screen interaction handling ===
                     if (currentState == GuiState::WIN_SCREEN)
                     {
                         handleWinScreenClick(mousePos);
-                        continue; // לא מטפלים בכפתורים אחרים במסך ניצחון
+                        continue; // Skip other button processing in win screen
                     }
 
-                    // === טיפול בכפתור ריסט ===
+                    // === Reset button handling ===
                     sf::FloatRect resetBounds = resetButton.getGlobalBounds();
                     if (resetBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
                     {
@@ -580,33 +733,33 @@ void CoupGUI::run()
                         continue;
                     }
 
-                    // === טיפול בפעולות מיוחדות דו-שלביות ===
+                    // === Two-stage special action handling ===
                     if (specialActionState == SpecialActionState::SELECTING_PERFORMER)
                     {
-                        // בחירת מבצע הפעולה
+                        // Performer selection stage
                         for (size_t i = 0; i < playerButtons.size(); i++)
                         {
                             sf::FloatRect buttonBounds = playerButtons[i].button.getGlobalBounds();
                             if (buttonBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
                             {
-                                // מציאת השחקן שנבחר
+                                // Find selected player
                                 for (const auto &player : realPlayers)
                                 {
                                     if (player->name() == playerButtons[i].playerName)
                                     {
                                         selectedPerformer = player;
                                         
-                                        // בדיקה אם הפעולה דורשת מטרה
+                                        // Check if action requires a target
                                         if (pendingSpecialAction == "see and block arrest")
                                         {
-                                            // עבור לשלב בחירת מטרה
+                                            // Move to target selection stage
                                             specialActionState = SpecialActionState::SELECTING_TARGET;
                                             createTargetButtons(selectedPerformer);
                                             addNotification("Select target for " + pendingSpecialAction);
                                         }
                                         else
                                         {
-                                            // הפעולה לא דורשת מטרה - מבצע ישירות
+                                            // Action doesn't need a target - execute directly
                                             executeSpecialAction(selectedPerformer);
                                         }
                                         break;
@@ -618,13 +771,13 @@ void CoupGUI::run()
                     }
                     else if (specialActionState == SpecialActionState::SELECTING_TARGET)
                     {
-                        // בחירת מטרה לפעולה
+                        // Target selection stage
                         for (size_t i = 0; i < playerButtons.size(); i++)
                         {
                             sf::FloatRect buttonBounds = playerButtons[i].button.getGlobalBounds();
                             if (buttonBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
                             {
-                                // מציאת המטרה שנבחרה
+                                // Find selected target
                                 for (const auto &player : realPlayers)
                                 {
                                     if (player->name() == playerButtons[i].playerName)
@@ -637,25 +790,25 @@ void CoupGUI::run()
                             }
                         }
                     }
-                    // === טיפול בפעולות בסיסיות (קיים) ===
+                    // === Basic action target selection handling ===
                     else if (waitingForTarget && !pendingActionName.empty())
                     {
-                        // בדיקה אם לחצו על אחד מכפתורי השחקנים
+                        // Check if player button was clicked
                         for (size_t i = 0; i < playerButtons.size(); i++)
                         {
                             sf::FloatRect buttonBounds = playerButtons[i].button.getGlobalBounds();
                             if (buttonBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
                             {
-                                // מצאנו את השחקן שנבחר
+                                // Found selected player
                                 std::string selectedPlayerName = playerButtons[i].playerName;
                                 
-                                // מציאת השחקן ברשימת השחקנים האמיתיים
+                                // Find the actual player in the players list
                                 for (const auto &player : realPlayers)
                                 {
                                     if (player->name() == selectedPlayerName && player->isActive())
                                     {
                                         try {
-                                            // ביצוע הפעולה המתאימה
+                                            // Execute appropriate action based on pending action name
                                             if (pendingActionName == "Arrest")
                                             {
                                                 executeArrest(player);
@@ -669,17 +822,17 @@ void CoupGUI::run()
                                                 executeCoup(player);
                                             }
                                             
-                                            // איפוס מצב בחירת המטרה
+                                            // Reset target selection state
                                             waitingForTarget = false;
                                             pendingActionName = "";
                                             clearPlayerButtons();
                                             
-                                            break; // יציאה מהלולאה הפנימית בלבד
+                                            break; // Exit inner loop only
                                         }
                                         catch (const std::exception &e) {
                                             addNotification("Error: " + std::string(e.what()));
                                             
-                                            // נקה גם במקרה של שגיאה
+                                            // Clean up even in case of error
                                             waitingForTarget = false;
                                             pendingActionName = "";
                                             clearPlayerButtons();
@@ -688,7 +841,7 @@ void CoupGUI::run()
                                         catch (...) {
                                             addNotification("Unknown error occurred!");
                                             
-                                            // נקה גם במקרה של שגיאה
+                                            // Clean up even in case of error
                                             waitingForTarget = false;
                                             pendingActionName = "";
                                             clearPlayerButtons();
@@ -700,7 +853,7 @@ void CoupGUI::run()
                         }
                     }
 
-                    // בדיקה אם לחצו על אחד מכפתורי הפעולות המיוחדות
+                    // Check if special action button was clicked
                     for (size_t i = 0; i < specialActions.size(); i++)
                     {
                         sf::FloatRect buttonBounds = specialActions[i].button.getGlobalBounds();
@@ -711,7 +864,7 @@ void CoupGUI::run()
                         }
                     }
 
-                    // בדיקה אם לחצו על אחד מכפתורי הפעולות הבסיסיות
+                    // Check if basic action button was clicked
                     for (size_t i = 0; i < basicActions.size(); i++)
                     {
                         sf::FloatRect buttonBounds = basicActions[i].button.getGlobalBounds();
@@ -725,7 +878,7 @@ void CoupGUI::run()
             }
 
             
-            // עדכון המצב
+            // Update game state
             try {
                 update();
                 
@@ -734,7 +887,7 @@ void CoupGUI::run()
                 addNotification("שגיאה ב-update: " + std::string(e.what()));
             }
 
-            // ציור
+            // Render the frame
             try {
                 render();
                 
@@ -743,41 +896,49 @@ void CoupGUI::run()
                 addNotification("שגיאה ב-render: " + std::string(e.what()));
             }
 
-            // שינה כדי לשמור על קצב פריימים עקבי
+            // Sleep to maintain consistent frame rate
             sf::sleep(sf::milliseconds(33)); // ~30 FPS
         }
         catch (const std::exception &e) {
             cout << "CRITICAL ERROR in main loop: " << e.what() << endl;
             addNotification("שגיאה קריטית: " + std::string(e.what()));
-            // לא סוגרים את החלון, ממשיכים
+            // Don't close window, continue running
         }
         catch (...) {
             cout << "UNKNOWN CRITICAL ERROR in main loop!" << endl;
             addNotification("שגיאה לא ידועה!");
-            // לא סוגרים את החלון, ממשיכים
+            // Don't close window, continue running
         }
     }
 }
 
+/**
+ * Updates the game state and UI elements each frame.
+ * This method is responsible for:
+ * 1. Checking for a winner when in playing state
+ * 2. Updating the current player information when the turn changes
+ * 3. Monitoring changes in game state (like coin counts)
+ * 4. Handling periodic visual refreshes
+ */
 void CoupGUI::update()
 {
-    // בדיקה אם יש מנצח (רק במצב משחק רגיל)
+    // Check if there is a winner (only in playing state)
     if (currentState == GuiState::PLAYING)
     {
         checkForWinner();
     }
 
-    // עדכון שם השחקן הנוכחי אם השתנה במהלך המשחק
+    // Update current player name if it changed during the game
     if (game && !realPlayers.empty() && currentState == GuiState::PLAYING) {
         try {
             shared_ptr<coup::Player> currentPlayer = game->getPlayer();
             if (currentPlayer && currentPlayer->name() != currentPlayerName) {
                 currentPlayerName = currentPlayer->name();
-                // כפיית עדכון חזותי כאשר השחקן משתנה
-                addNotification("התור עבר ל: " + currentPlayerName);
+                // Force visual update when player changes
+                addNotification("Turn changed to: " + currentPlayerName);
             }
             
-            // בדיקה אם יש שינויים במצב המשחק והפעלת עדכון חזותי במידת הצורך
+            // Check if there are changes in game state and update visuals if needed
             static int lastCoinsCount = -1;
             int currentCoinsCount = currentPlayer->coins();
             if (lastCoinsCount != currentCoinsCount) {
@@ -785,14 +946,14 @@ void CoupGUI::update()
             }
             
         } catch (const std::exception &e) {
-            // התעלם משגיאות - למשל אם המשחק נגמר
+            // Ignore errors - for example if the game is over
         }
     }
     
-    // רענון חזותי יזום בכל X פריימים
+    // Periodic visual refresh every X frames
     static int frameCounter = 0;
     frameCounter++;
-    if (frameCounter >= 30) {  // רענון כל שניה בערך (ב-30 פריימים לשניה)
+    if (frameCounter >= 30) {  // Refresh approximately every second (at 30 FPS)
         frameCounter = 0;
         
     }
@@ -804,33 +965,38 @@ void CoupGUI::toggleDebugMode()
     addNotification(debugMode ? "Debug mode enabled" : "Debug mode disabled");
 }
 
+/**
+ * Renders the entire game interface based on the current state.
+ * This function is responsible for drawing all visual elements of the game
+ * including backgrounds, panels, buttons, and game information.
+ */
 void CoupGUI::render()
 {
     window.clear();
 
-    // ציור מסך לפי המצב הנוכחי
+    // Draw appropriate screen based on current game state
     if (currentState == GuiState::SETUP)
     {
-        // ציור רקע פשוט
+        // Draw the simple background for setup screen
         window.draw(background);
         
-        // ציור מסך הגדרות
+        // Draw the setup interface with player configuration options
         drawSetupScreen();
     }
     else if (currentState == GuiState::WIN_SCREEN)
     {
-        // ציור רקע פשוט
+        // Draw simple background for win screen
         window.draw(background);
         
-        // ציור מסך ניצחון
+        // Draw win screen showing the winner and game results
         drawWinScreen();
     }
-    else // GuiState::PLAYING
+    else // GuiState::PLAYING - Main gameplay state
     {
-        // ציור רקע
+        // Draw the game background
         window.draw(background);
 
-        // ציור כותרת
+        // Draw the game title at the top of the screen
         sf::Text titleText;
         titleText.setFont(titleFont);
         titleText.setString("Coup - Game");
@@ -839,54 +1005,59 @@ void CoupGUI::render()
         titleText.setPosition(520, 30);
         window.draw(titleText);
 
-        // ציור כפתור ריסט
+        // Draw reset button to allow starting a new game
         drawResetButton();
 
-        // ציור לוח המשחק
+        // Draw the main game board and all player cards
         window.draw(gameBoard);
         drawPlayers();
 
-        // ציור לוח יומן
+        // Draw the game log panel showing history of moves
         window.draw(logPanel);
         drawGameLog();
 
-        // ציור פאנל פעולות מיוחדות
+        // Draw special actions panel (for out-of-turn abilities)
         window.draw(specialActionsPanel);
         drawSpecialActions();
 
-        // ציור לוח פעולות
+        // Draw the action panel showing available moves for current player
         window.draw(actionPanel);
         drawActionPanel();
 
-        // ציור התראות
+        // Draw any active notifications or alerts
         drawNotifications();
 
-        // ציור כפתורי בחירת שחקנים אם צריך
+        // Draw player selection buttons when needed
+        // (when targeting a player or selecting a performer for special actions)
         if ((waitingForTarget && !playerButtons.empty()) || 
             (specialActionState != SpecialActionState::NONE && !playerButtons.empty()))
         {
             drawPlayerButtons();
         }
 
-        // ציור מידע דיבאג אם מופעל
+        // Draw debug information when debug mode is enabled
         if (debugMode)
         {
             drawDebugInfo();
         }
     }
 
+    // Display everything on screen
     window.display();
 }
 
 void CoupGUI::drawPlayers()
 {
+    // Try-catch block to handle any exceptions during player rendering
     try {
+        // Check if game or players exist
         if (game == nullptr || realPlayers.empty()) {
-            return;  // אין משחק או שחקנים להציג
+            return;  // No game or players to display
         }
 
         size_t numPlayers = realPlayers.size();
 
+        // Card dimensions and positioning variables
         float cardWidth = 140;
         float cardHeight = 200;
         float startX = 60;
@@ -894,52 +1065,56 @@ void CoupGUI::drawPlayers()
         float spacingX = 180;
         int playersPerRow = 4;
 
+        // Loop through all players to draw their cards
         for (size_t i = 0; i < numPlayers; i++)
         {
-            // בדיקה שהשחקן תקין
+            // Check if player pointer is valid
             if (!realPlayers[i]) {
                 cout << "Warning: null player at index " << i << endl;
                 continue;
             }
             
-            // שליפת מידע משחקן אמיתי
+            // Retrieve player information
             std::string playerName = realPlayers[i]->name();
             coup::Role playerRole = realPlayers[i]->role();
             int coins = realPlayers[i]->coins();
             bool isCurrentPlayer = (playerName == currentPlayerName);
 
+            // Calculate position based on grid layout
             int row = static_cast<int>(i) / playersPerRow;
             int col = static_cast<int>(i) % playersPerRow;
             float x = startX + col * spacingX;
             float y = startY + row * (cardHeight + 30);
 
-            // ציור כרטיס שחקן
+            // Create and configure player card rectangle
             sf::RectangleShape playerCard;
             playerCard.setSize(sf::Vector2f(cardWidth, cardHeight));
             playerCard.setPosition(x, y);
             playerCard.setFillColor(getRoleColor(playerRole));
 
-            // הדגשת שחקן נוכחי
+            // Highlight current player with yellow border
             if (isCurrentPlayer)
             {
                 playerCard.setOutlineThickness(4);
                 playerCard.setOutlineColor(sf::Color::Yellow);
             }
+            // Highlight potential targets with green border
             else if (waitingForTarget && playerName != currentPlayerName && realPlayers[i]->isActive())
             {
-                // הדגשת מטרות אפשריות
                 playerCard.setOutlineThickness(3);
                 playerCard.setOutlineColor(sf::Color::Green);
             }
+            // Default border for other players
             else
             {
                 playerCard.setOutlineThickness(1);
                 playerCard.setOutlineColor(sf::Color(150, 150, 150));
             }
 
+            // Draw the player card
             window.draw(playerCard);
 
-            // ציור שם שחקן
+            // Draw player name
             sf::Text nameText;
             nameText.setFont(mainFont);
             nameText.setString(playerName);
@@ -948,7 +1123,7 @@ void CoupGUI::drawPlayers()
             nameText.setPosition(x + 10, y + 10);
             window.draw(nameText);
 
-            // ציור תפקיד שחקן
+            // Draw player role
             sf::Text roleText;
             roleText.setFont(mainFont);
             roleText.setString(getRoleName(playerRole));
@@ -957,7 +1132,7 @@ void CoupGUI::drawPlayers()
             roleText.setPosition(x + 10, y + 40);
             window.draw(roleText);
 
-            // ציור מטבעות
+            // Draw coin count
             sf::Text coinsText;
             coinsText.setFont(mainFont);
             coinsText.setString("Coins: " + std::to_string(coins));
@@ -967,8 +1142,9 @@ void CoupGUI::drawPlayers()
             window.draw(coinsText);
         }
     } catch (const std::exception &e) {
+        // Handle and display any errors that occur during rendering
         cout << "ERROR in drawPlayers(): " << e.what() << endl;
-        // נציג הודעת שגיאה במסך במקום לקרוס
+        // Show error message on screen instead of crashing
         sf::Text errorText;
         errorText.setFont(mainFont);
         errorText.setString("Error drawing players: " + std::string(e.what()));
@@ -1019,101 +1195,175 @@ void CoupGUI::drawGameLog()
     }
 }
 
+/**
+ * Draws the action panel where players can select game actions
+ * 
+ * This method is responsible for rendering the action panel interface which displays
+ * all available actions a player can take during their turn. It includes:
+ * - Setting up and displaying the main action panel title
+ * - Iterating through and drawing all basic action buttons
+ * - Positioning and rendering text for each action button
+ * - Creating a centered title for the basic actions section
+ */
 void CoupGUI::drawActionPanel()
 {
+    // Initialize the main action panel title
     sf::Text actionTitle;
     actionTitle.setFont(mainFont);
-
+    // Set visual properties for the title
     actionTitle.setCharacterSize(18);
     actionTitle.setFillColor(sf::Color::White);
     actionTitle.setPosition(50, 625);
     window.draw(actionTitle);
 
-    // ציור כפתורי הפעולות הבסיסיות
+    // Draw all basic action buttons and their labels
     for (size_t i = 0; i < basicActions.size(); i++)
     {
-        // ציור הכפתור
+        // Draw the button background
         window.draw(basicActions[i].button);
 
-        // ציור הטקסט
+        // Draw the button label text
         window.draw(basicActions[i].buttonText);
     }
 
-    // כותרת לפעולות
+    // Create and configure the basic actions section title
     sf::Text basicTitle;
     basicTitle.setFont(mainFont);
     basicTitle.setCharacterSize(18);
     basicTitle.setFillColor(sf::Color::White);
 
-    // מיקום הכותרת במרכז
+    // Center the title above the action buttons
     float titleX = actionPanel.getPosition().x + (actionPanel.getSize().x / 2);
     float titleY = 610;
     basicTitle.setOrigin(basicTitle.getLocalBounds().width / 2, 0);
     basicTitle.setPosition(titleX, titleY);
 
+    // Render the title
     window.draw(basicTitle);
 }
 
+/**
+ * Draws in-game notifications to the screen
+ * 
+ * This method is responsible for:
+ * - Displaying notification messages at the top of the screen
+ * - Automatically removing notifications after a timed period
+ * - Centering each notification text for better visibility
+ * 
+ * The notification system works as a queue where messages are displayed
+ * for 3 seconds before being removed to show the next notification.
+ */
 void CoupGUI::drawNotifications()
 {
+    // If there are no notifications to display, exit early
     if (notificationQueue.empty())
         return;
 
-    // הצגת התראה ראשונה בתור
+    // Create and configure the notification text
     sf::Text notifText;
     notifText.setFont(mainFont);
-    notifText.setString(notificationQueue.front());
+    notifText.setString(notificationQueue.front());  // Display the first notification in queue
     notifText.setCharacterSize(20);
-    notifText.setFillColor(sf::Color::Yellow);
+    notifText.setFillColor(sf::Color::Yellow);      // Yellow color for visibility
 
-    // מיקום במרכז מסך עליון
+    // Center the notification at the top of the screen
     sf::FloatRect textBounds = notifText.getLocalBounds();
     notifText.setPosition((window.getSize().x - textBounds.width) / 2, 60);
 
+    // Render the notification
     window.draw(notifText);
 
-    // הסרת התראות ישנות
+    // Remove old notifications after 3 seconds
     static sf::Clock notifClock;
     if (notifClock.getElapsedTime().asSeconds() > 3.0f)
     {
-        notificationQueue.pop();
-        notifClock.restart();
+        notificationQueue.pop();     // Remove the current notification
+        notifClock.restart();        // Reset the timer for the next notification
     }
 }
 
+/**
+ * Draws debug information on the screen when debug mode is enabled.
+ * 
+ * This method displays technical information including:
+ * - Current FPS (Frames Per Second) calculated from globalClock
+ * - Current game mode
+ * - Size of the game board element
+ * - Number of players in the game
+ * 
+ * The information is displayed in a small green text at the top-left corner
+ * of the screen, providing developers with real-time performance metrics
+ * and game state data for debugging purposes.
+ */
 void CoupGUI::drawDebugInfo()
 {
+    // Create a string stream to build the debug text
     std::stringstream debugText;
+    
+    // Calculate FPS by taking the reciprocal of the time elapsed since last frame
+    // and add various debug information to the text stream
     debugText << "FPS: " << std::round(1.0f / globalClock.restart().asSeconds())
-              << " | Mode: GAME"
-              << " | Elements: Board(" << gameBoard.getSize().x << "x" << gameBoard.getSize().y << ")"
-              << " | Players: " << realPlayers.size();
+              << " | Mode: GAME"  // Current game mode
+              << " | Elements: Board(" << gameBoard.getSize().x << "x" << gameBoard.getSize().y << ")"  // Board dimensions
+              << " | Players: " << realPlayers.size();  // Number of active players
 
+    // Create and configure the text object for displaying debug info
     sf::Text debugInfoText;
     debugInfoText.setFont(mainFont);
     debugInfoText.setString(debugText.str());
-    debugInfoText.setCharacterSize(14);
-    debugInfoText.setFillColor(sf::Color(100, 255, 100));
-    debugInfoText.setPosition(10, 5);
+    debugInfoText.setCharacterSize(14);  // Small text size for debug info
+    debugInfoText.setFillColor(sf::Color(100, 255, 100));  // Light green color
+    debugInfoText.setPosition(10, 5);  // Position at top-left corner
+    
+    // Draw the debug text to the window
     window.draw(debugInfoText);
 }
 
+/**
+ * Adds a new message to the game log history.
+ * 
+ * This method adds the provided message to the game's log history,
+ * which keeps track of all game actions and events. It also maintains
+ * a maximum log size by removing the oldest messages when the limit is reached.
+ * 
+ * @param message The message to add to the game log
+ */
 void CoupGUI::addLogMessage(const std::string &message)
 {
+    // Add the new message to the end of the log
     logMessages.push_back(message);
 
-    // שמירה על היסטוריה מוגבלת
+    // Limit the history to 100 messages by removing the oldest ones
     if (logMessages.size() > 100)
     {
         logMessages.erase(logMessages.begin());
     }
 }
 
+/**
+ * Adds a notification message to the queue for display on screen.
+ * 
+ * This method queues a notification message that will be displayed to the player
+ * during gameplay. Notifications are typically used to inform players about
+ * game events, errors, or status updates.
+ * 
+ * @param message The notification text to be displayed
+ */
 void CoupGUI::addNotification(const std::string &message)
 {
     notificationQueue.push(message);
 }
 
+/**
+ * Determines the color associated with a specific game role.
+ * 
+ * This method returns the appropriate color for a given role from the
+ * predefined color map. Each role in the game has a distinctive color
+ * used for visual identification on player cards and UI elements.
+ * 
+ * @param role The game role to get a color for
+ * @return The color associated with the role, or gray if not found
+ */
 sf::Color CoupGUI::getRoleColor(coup::Role role)
 {
     if (roleColors.find(role) != roleColors.end())
@@ -1121,10 +1371,20 @@ sf::Color CoupGUI::getRoleColor(coup::Role role)
         return roleColors[role];
     }
 
-    // צבע ברירת מחדל
+    // Default color (gray) if role not found in map
     return sf::Color(100, 100, 100);
 }
 
+/**
+ * Converts a role enumeration value to its display name.
+ * 
+ * This method translates the internal role enumeration to a human-readable
+ * string representation for display in the UI. Each role in the game has
+ * a specific name that identifies its character type.
+ * 
+ * @param role The game role to convert to string
+ * @return The string name of the role
+ */
 std::string CoupGUI::getRoleName(coup::Role role)
 {
     switch (role)
@@ -1146,6 +1406,15 @@ std::string CoupGUI::getRoleName(coup::Role role)
     }
 }
 
+/**
+ * Handles click events on special action buttons.
+ * 
+ * This method is triggered when a player clicks on one of the special action buttons
+ * that can be performed out of turn. It initiates the two-step selection process for
+ * the special action.
+ * 
+ * @param actionIndex The index of the clicked special action in the specialActions array
+ */
 void CoupGUI::handleSpecialActionClick(int actionIndex)
 {
     if (actionIndex < 0 || actionIndex >= static_cast<int>(specialActions.size()))
@@ -1153,13 +1422,22 @@ void CoupGUI::handleSpecialActionClick(int actionIndex)
 
     const SpecialAction &action = specialActions[actionIndex];
     
-    // התחל מנגנון בחירה דו-שלבי
+    // Start the two-step selection mechanism
     startSpecialActionSelection(action.name, action.requiredRole);
 }
 
+/**
+ * Draws all available special actions on the special actions panel.
+ * 
+ * This method renders the special actions panel with all out-of-turn actions
+ * that players can perform. It displays the action name, the role required
+ * for each action, and a representative player who has that role.
+ * Special filtering is applied for Baron's Invest action to only show it
+ * when the current player is a Baron.
+ */
 void CoupGUI::drawSpecialActions()
 {
-    // כותרת לפאנל פעולות מיוחדות
+    // Draw title for the special actions panel
     sf::Text specialTitle;
     specialTitle.setFont(mainFont);
     specialTitle.setString("Out Of Turn Actions");
@@ -1168,16 +1446,16 @@ void CoupGUI::drawSpecialActions()
     specialTitle.setPosition(1030, 410);
     window.draw(specialTitle);
 
-    // ציור שמות השחקנים ותפקידיהם לפני הכפתורים
-    float currentY = 450; // מיקום התחלתי Y
-    float spacing = 35;  // מרווח בין כפתורים
+    // Draw player names and roles before the buttons
+    float currentY = 450; // Initial Y position
+    float spacing = 35;   // Spacing between buttons
 
     for (size_t i = 0; i < specialActions.size(); i++)
     {
-        // בדיקה אם לא להציג את הכפתור ה-Invest של ה-Baron אם השחקן הנוכחי אינו Baron
+        // Check whether to display the Baron's Invest button if current player is not a Baron
         bool showButton = true;
         if (specialActions[i].requiredRole == coup::Role::BARON) {
-            // חיפוש השחקן הנוכחי ברשימת השחקנים האמיתיים
+            // Search for the current player in the real players list
             bool isCurrentPlayerBaron = false;
             for (const auto &player : realPlayers) {
                 if (player->name() == currentPlayerName && player->role() == coup::Role::BARON) {
@@ -1185,17 +1463,17 @@ void CoupGUI::drawSpecialActions()
                     break;
                 }
             }
-            // אם השחקן הנוכחי אינו Baron, לא נציג את הכפתור
+            // If current player is not a Baron, don't show the button
             if (!isCurrentPlayerBaron) {
                 showButton = false;
             }
         }
         
         if (!showButton) {
-            continue;  // דילוג על הצגת כפתור
+            continue;  // Skip displaying this button
         }
 
-        // מצא דוגמת שחקן עם התפקיד המתאים
+        // Find a player example with the appropriate role
         std::string playerExample = "";
         for (const auto &player : realPlayers)
         {
@@ -1206,19 +1484,19 @@ void CoupGUI::drawSpecialActions()
             }
         }
 
-        // קיצור לשם הראשון
+        // Abbreviate to first letter
         std::string shortName = "";
         if (!playerExample.empty()) {
             shortName = playerExample.substr(0, 1);
         }
 
-        // עדכון מיקום הכפתור הנוכחי
+        // Update current button position
         specialActions[i].button.setPosition(1080, currentY);
         specialActions[i].buttonText.setPosition(
             1080 + (specialActions[i].button.getSize().x - specialActions[i].buttonText.getLocalBounds().width) / 2,
             currentY + 5);
 
-        // ציור שם השחקן ותפקידו
+        // Draw player name and role
         sf::Text playerText;
         playerText.setFont(mainFont);
         playerText.setString(shortName + " (" + getRoleName(specialActions[i].requiredRole) + ")");
@@ -1227,60 +1505,71 @@ void CoupGUI::drawSpecialActions()
         playerText.setPosition(980, currentY + 5);
         window.draw(playerText);
 
-        // ציור הכפתור והטקסט שלו
+        // Draw the button and its text
         window.draw(specialActions[i].button);
         window.draw(specialActions[i].buttonText);
 
-        // קידום המיקום האנכי לכפתור הבא
+        // Advance the vertical position for the next button
         currentY += spacing;
     }
 }
 
+/**
+ * Handles the click event on a basic action button.
+ * This function processes different game actions based on the selected button.
+ * 
+ * @param actionIndex The index of the clicked action button
+ */
 void CoupGUI::handleBasicActionClick(int actionIndex)
 {
+    // Validate the action index to ensure it's within range
     if (actionIndex < 0 || actionIndex >= static_cast<int>(basicActions.size()))
         return;
 
+    // Get the selected action details
     const BasicAction &action = basicActions[actionIndex];
     std::string actionName = action.name;
     
     try
     {
-        // קבלת השחקן הנוכחי
+        // Get the current player
         shared_ptr<coup::Player> currentPlayer = game->getPlayer();
 
-        // ביצוע הפעולה המתאימה
+        // Perform the appropriate action based on the button clicked
         if (actionName == "Gather")
         {
+            // Income action - collect 1 coin
             currentPlayer->gather();
             addLogMessage(currentPlayerName + " gathered 1 coin");
             
-            // עדכון שם השחקן הנוכחי אחרי הפעולה
+            // Update current player name after the action
             currentPlayer = game->getPlayer();
             currentPlayerName = currentPlayer->name();
         }
 
         else if (actionName == "Tax")
         {
+            // Tax action - collect 2 coins (Duke's special ability)
             currentPlayer->tax();
             addLogMessage(currentPlayerName + " taxed and received 2 coins");
             
-            // עדכון שם השחקן הנוכחי אחרי הפעולה
+            // Update current player name after the action
             currentPlayer = game->getPlayer();
             currentPlayerName = currentPlayer->name();
         }
         else if (actionName == "Bribe")
         {
+            // Bribe action
             currentPlayer->bribe();
             addLogMessage(currentPlayerName + " bribed another player");
             
-            // עדכון שם השחקן הנוכחי אחרי הפעולה
+            // Update current player name after the action
             currentPlayer = game->getPlayer();
             currentPlayerName = currentPlayer->name();
         }
         else if (actionName == "Arrest")
         {
-            // יצירת כפתורי בחירת שחקנים
+            // Arrest action requires selecting a target player
             pendingActionName = "Arrest";
             waitingForTarget = true;
             createPlayerButtons();
@@ -1288,7 +1577,7 @@ void CoupGUI::handleBasicActionClick(int actionIndex)
         }
         else if (actionName == "Sanction")
         {
-            // יצירת כפתורי בחירת שחקנים
+            // Sanction action requires selecting a target player
             pendingActionName = "Sanction";
             waitingForTarget = true;
             createPlayerButtons();
@@ -1296,27 +1585,40 @@ void CoupGUI::handleBasicActionClick(int actionIndex)
         }
         else if (actionName == "Coup")
         {
-            // יצירת כפתורי בחירת שחקנים
+            // Coup action requires selecting a target player
             pendingActionName = "Coup";
             waitingForTarget = true;
             createPlayerButtons();
             addNotification("click on a player to perform a coup");
         }
         
+        // Notify the user of successful action and next player's turn
         addNotification(action.name + " action succeeded. Next player: " + currentPlayerName);
     }
     catch (const std::exception &e)
     {
+        // Handle any errors that occur during action execution
         addNotification("Error: " + std::string(e.what()));
         addLogMessage("Failed action: " + std::string(e.what()));
     }
 }
 
-// פונקציות עזר לכפתורי שחקנים
+/**
+ * Helper functions for player selection buttons
+ */
+
+/**
+ * Creates player selection buttons for targeting actions.
+ * This function generates buttons for each active player except the current player.
+ * These buttons are used when a player needs to select another player as a target
+ * for actions such as coup, arrest, or sanction.
+ */
 void CoupGUI::createPlayerButtons()
 {
+    // Clear any existing player buttons
     playerButtons.clear();
     
+    // Define button dimensions and positioning
     float buttonWidth = 120;
     float buttonHeight = 35;
     float startX = 400;
@@ -1325,7 +1627,7 @@ void CoupGUI::createPlayerButtons()
     
     int buttonIndex = 0;
     
-    // יצירת כפתור לכל שחקן פעיל שאינו השחקן הנוכחי
+    // Create a button for each active player that isn't the current player
     for (const auto &player : realPlayers)
     {
         if (player->name() != currentPlayerName && player->isActive())
@@ -1333,14 +1635,14 @@ void CoupGUI::createPlayerButtons()
             PlayerButton playerButton;
             playerButton.playerName = player->name();
             
-            // יצירת הכפתור
+            // Configure the button rectangle
             playerButton.button.setSize(sf::Vector2f(buttonWidth, buttonHeight));
             playerButton.button.setPosition(startX, startY + buttonIndex * spacing);
-            playerButton.button.setFillColor(sf::Color(70, 130, 180)); // כחול
+            playerButton.button.setFillColor(sf::Color(70, 130, 180)); // Blue color
             playerButton.button.setOutlineThickness(2);
             playerButton.button.setOutlineColor(sf::Color::White);
             
-            // יצירת הטקסט
+            // Configure the button text
             playerButton.buttonText.setFont(mainFont);
             playerButton.buttonText.setString(player->name());
             playerButton.buttonText.setCharacterSize(16);
@@ -1350,35 +1652,46 @@ void CoupGUI::createPlayerButtons()
                 startY + buttonIndex * spacing + (buttonHeight - playerButton.buttonText.getLocalBounds().height) / 2 - 5
             );
             
+            // Add the button to our collection
             playerButtons.push_back(playerButton);
             buttonIndex++;
         }
     }
 }
 
+/**
+ * Clears all player selection buttons.
+ * Called when player selection is complete or canceled.
+ */
 void CoupGUI::clearPlayerButtons()
 {
     playerButtons.clear();
 }
 
+/**
+ * Draws the player selection interface with all player buttons.
+ * This displays a modal dialog with buttons for each targetable player
+ * and instructions based on the current action context.
+ */
 void CoupGUI::drawPlayerButtons()
 {
-    // רקע עבור כפתורי השחקנים
+    // Create a semi-transparent background panel
     sf::RectangleShape background;
     background.setSize(sf::Vector2f(300, 400));
     background.setPosition(350, 250);
-    background.setFillColor(sf::Color(30, 30, 30, 200)); // שקוף חלקית
+    background.setFillColor(sf::Color(30, 30, 30, 200)); // Semi-transparent black
     background.setOutlineThickness(3);
     background.setOutlineColor(sf::Color::Yellow);
     window.draw(background);
     
-    // כותרת דינמית לפי המצב
+    // Create a dynamic title based on the current selection state
     sf::Text title;
     title.setFont(mainFont);
     title.setCharacterSize(20);
     title.setFillColor(sf::Color::Yellow);
     title.setPosition(420, 260);
     
+    // Set appropriate title text based on the current selection context
     if (specialActionState == SpecialActionState::SELECTING_PERFORMER)
     {
         title.setString("Select " + getRoleName(pendingSpecialActionRole) + ":");
@@ -1398,14 +1711,14 @@ void CoupGUI::drawPlayerButtons()
     
     window.draw(title);
     
-    // ציור כל הכפתורים
+    // Draw all player buttons
     for (const auto &playerButton : playerButtons)
     {
         window.draw(playerButton.button);
         window.draw(playerButton.buttonText);
     }
     
-    // הוראה לביטול
+    // Draw cancel instruction
     sf::Text cancelText;
     cancelText.setFont(mainFont);
     cancelText.setString("ESC to cancel");
@@ -1415,21 +1728,30 @@ void CoupGUI::drawPlayerButtons()
     window.draw(cancelText);
 }
 
-// פונקציות לביצוע פעולות עם בחירת מטרה
+/**
+ * Executes the arrest action against a target player
+ * This function handles the process of arresting another player
+ * and updates the game state accordingly
+ *
+ * @param targetPlayer The player who will be arrested
+ */
 void CoupGUI::executeArrest(std::shared_ptr<coup::Player> targetPlayer)
 {
     try {
+        // Get current player from the game
         auto currentPlayer = game->getPlayer();
         
+        // Execute the arrest action
         currentPlayer->arrest(targetPlayer);
         addLogMessage(currentPlayerName + " arrested " + targetPlayer->name());
         
-        // עדכון שם השחקן הנוכחי אחרי הפעולה
+        // Update current player name after the action
+        // This is needed because turns change after actions
         try {
             currentPlayer = game->getPlayer();
             currentPlayerName = currentPlayer->name();
         } catch (const std::exception &e) {
-            // אם יש שגיאה בעדכון, נמשיך עם השם הקיים
+            // If there's an error updating, continue with existing name
         }
         
         addNotification("Arrest completed successfully! Next turn: " + currentPlayerName);
@@ -1439,20 +1761,30 @@ void CoupGUI::executeArrest(std::shared_ptr<coup::Player> targetPlayer)
     }
 }
 
+/**
+ * Executes the sanction action against a target player
+ * This function handles applying sanctions to another player
+ * and updates the game state accordingly
+ *
+ * @param targetPlayer The player who will be sanctioned
+ */
 void CoupGUI::executeSanction(std::shared_ptr<coup::Player> targetPlayer)
 {
     try {
+        // Get current player from the game
         auto currentPlayer = game->getPlayer();
         
+        // Execute the sanction action
         currentPlayer->sanction(*targetPlayer);
         addLogMessage(currentPlayerName + " sanctioned " + targetPlayer->name());
         
-        // עדכון שם השחקן הנוכחי אחרי הפעולה
+        // Update current player name after the action
+        // This is needed because turns change after actions
         try {
             currentPlayer = game->getPlayer();
             currentPlayerName = currentPlayer->name();
         } catch (const std::exception &e) {
-            // אם יש שגיאה בעדכון, נמשיך עם השם הקיים
+            // If there's an error updating, continue with existing name
         }
         
         addNotification("Sanction completed successfully! Next turn: " + currentPlayerName);
@@ -1462,20 +1794,30 @@ void CoupGUI::executeSanction(std::shared_ptr<coup::Player> targetPlayer)
     }
 }
 
+/**
+ * Executes the coup action against a target player
+ * This function handles the process of eliminating another player
+ * from the game and updates the game state accordingly
+ *
+ * @param targetPlayer The player who will be eliminated with a coup
+ */
 void CoupGUI::executeCoup(std::shared_ptr<coup::Player> targetPlayer)
 {
     try {
+        // Get current player from the game
         auto currentPlayer = game->getPlayer();
         
+        // Execute the coup action
         currentPlayer->coup(targetPlayer);
         addLogMessage(currentPlayerName + " performed coup on " + targetPlayer->name());
         
-        // עדכון שם השחקן הנוכחי אחרי הפעולה
+        // Update current player name after the action
+        // This is needed because turns change after actions
         try {
             currentPlayer = game->getPlayer();
             currentPlayerName = currentPlayer->name();
         } catch (const std::exception &e) {
-            // אם יש שגיאה בעדכון, נמשיך עם השם הקיים
+            // If there's an error updating, continue with existing name
         }
         
         addNotification("Coup completed successfully! Next turn: " + currentPlayerName);
@@ -1485,11 +1827,27 @@ void CoupGUI::executeCoup(std::shared_ptr<coup::Player> targetPlayer)
     }
 }
 
-// ========== פונקציות חדשות למנגנון דו-שלבי ==========
-
+/**
+ * Starts the selection process for a special action.
+ * This function initializes the selection process for actions that require
+ * a performer (e.g., Undo Tax, Undo Bribe, Undo Coup) or a target (e.g., see and block arrest).
+ * 
+ * @param actionName The name of the special action to perform
+ * @param requiredRole The role required to perform the action
+ */
+/**
+ * Starts the selection process for a special action.
+ * This function initializes the selection process for actions that require
+ * a performer (e.g., Undo Tax, Undo Bribe, Undo Coup) or a target (e.g., see and block arrest).
+ * It identifies eligible players for performing the action and manages the flow based on
+ * how many eligible players are available.
+ * 
+ * @param actionName The name of the special action to perform
+ * @param requiredRole The role required to perform the action
+ */
 void CoupGUI::startSpecialActionSelection(const std::string& actionName, coup::Role requiredRole)
 {
-    // ספירת כמה שחקנים יש מהתפקיד הנדרש
+    // Count how many players have the required role
     std::vector<std::shared_ptr<coup::Player>> availablePerformers;
     for (const auto &player : realPlayers)
     {
@@ -1505,84 +1863,109 @@ void CoupGUI::startSpecialActionSelection(const std::string& actionName, coup::R
         return;
     }
     
-    // הגדרת המשתנים לפני בדיקת כמות השחקנים
+    // Define variables before checking player count
     pendingSpecialAction = actionName;
     pendingSpecialActionRole = requiredRole;
     
-    // בדיקה אם הפעולה דורשת מטרה
+    // Check if the action requires a target
     bool requiresTarget = (actionName == "see and block arrest");
     
     if (availablePerformers.size() == 1)
     {
-        // רק שחקן אחד מהתפקיד הזה
+        // Only one player has this role - automatic selection
         selectedPerformer = availablePerformers[0];
         
         if (requiresTarget)
         {
-            // הפעולה דורשת מטרה - עבור לשלב בחירת מטרה
+            // Action requires a target - proceed to target selection phase
             specialActionState = SpecialActionState::SELECTING_TARGET;
             createTargetButtons(selectedPerformer);
             addNotification("Select target for " + actionName);
         }
         else
         {
-            // הפעולה לא דורשת מטרה - מבצע ישירות
+            // Action doesn't require a target - execute directly
             executeSpecialAction(selectedPerformer);
         }
         return;
     }
     
-    // יש יותר משחקן אחד - מתחיל מנגנון בחירה
+    // Multiple eligible players - start selection mechanism
     specialActionState = SpecialActionState::SELECTING_PERFORMER;
     
     createPerformerButtons(requiredRole);
     addNotification("Select which " + getRoleName(requiredRole) + " performs " + actionName);
 }
 
+/**
+ * Creates interactive buttons for players with a specific role
+ * 
+ * This method generates a set of clickable buttons for all active players who have
+ * the specified role. These buttons are used to select which player will perform
+ * a special action associated with their role.
+ * 
+ * @param requiredRole The role that players must have to be included in the selection
+ */
 void CoupGUI::createPerformerButtons(coup::Role requiredRole)
 {
+    // Clear any existing buttons from previous selections
     playerButtons.clear();
     
+    // Define button dimensions and positioning
     float buttonWidth = 120;
     float buttonHeight = 35;
-    float startX = 400;
-    float startY = 250;
-    float spacing = 45;
+    float startX = 400;     // X coordinate for the left edge of all buttons
+    float startY = 250;     // Y coordinate for the top of the first button
+    float spacing = 45;     // Vertical space between buttons
     
     int buttonIndex = 0;
     
+    // Iterate through all players in the game
     for (const auto &player : realPlayers)
     {
+        // Only create buttons for active players with the required role
         if (player->role() == requiredRole && player->isActive())
         {
+            // Create a new button for this player
             PlayerButton playerButton;
             playerButton.playerName = player->name();
             
+            // Configure the button's appearance
             playerButton.button.setSize(sf::Vector2f(buttonWidth, buttonHeight));
             playerButton.button.setPosition(startX, startY + buttonIndex * spacing);
-            playerButton.button.setFillColor(getRoleColor(requiredRole));
+            playerButton.button.setFillColor(getRoleColor(requiredRole));  // Color based on role
             playerButton.button.setOutlineThickness(2);
             playerButton.button.setOutlineColor(sf::Color::White);
             
+            // Configure the text on the button
             playerButton.buttonText.setFont(mainFont);
             playerButton.buttonText.setString(player->name() + " (" + getRoleName(requiredRole) + ")");
             playerButton.buttonText.setCharacterSize(16);
             playerButton.buttonText.setFillColor(sf::Color::White);
+            
+            // Center the text on the button
             playerButton.buttonText.setPosition(
                 startX + (buttonWidth - playerButton.buttonText.getLocalBounds().width) / 2,
                 startY + buttonIndex * spacing + (buttonHeight - playerButton.buttonText.getLocalBounds().height) / 2 - 5
             );
             
+            // Add the configured button to the collection
             playerButtons.push_back(playerButton);
             buttonIndex++;
         }
     }
 }
 
+/**
+ * Creates buttons for selecting target players
+ * @param performer The player who will perform an action on the target
+ */
 void CoupGUI::createTargetButtons(std::shared_ptr<coup::Player> performer)
 {
+    // Clear any existing player buttons
     playerButtons.clear();
     
+    // Define button dimensions and positioning
     float buttonWidth = 120;
     float buttonHeight = 35;
     float startX = 400;
@@ -1593,33 +1976,44 @@ void CoupGUI::createTargetButtons(std::shared_ptr<coup::Player> performer)
     
     for (const auto &player : realPlayers)
     {
-        // רק שחקנים פעילים שאינם המבצע עצמו
+        // Only active players that are not the performer themselves
         if (player->isActive() && player->name() != performer->name())
         {
+            // Create a new button for this player
             PlayerButton playerButton;
             playerButton.playerName = player->name();
             
+            // Configure the button's appearance
             playerButton.button.setSize(sf::Vector2f(buttonWidth, buttonHeight));
             playerButton.button.setPosition(startX, startY + buttonIndex * spacing);
-            playerButton.button.setFillColor(sf::Color(70, 130, 180)); // כחול
+            playerButton.button.setFillColor(sf::Color(70, 130, 180)); // Steel blue color
             playerButton.button.setOutlineThickness(2);
             playerButton.button.setOutlineColor(sf::Color::Green);
             
+            // Configure the text on the button
             playerButton.buttonText.setFont(mainFont);
             playerButton.buttonText.setString(player->name());
             playerButton.buttonText.setCharacterSize(16);
             playerButton.buttonText.setFillColor(sf::Color::White);
+            
+            // Center the text on the button
             playerButton.buttonText.setPosition(
                 startX + (buttonWidth - playerButton.buttonText.getLocalBounds().width) / 2,
                 startY + buttonIndex * spacing + (buttonHeight - playerButton.buttonText.getLocalBounds().height) / 2 - 5
             );
             
+            // Add the configured button to the collection
             playerButtons.push_back(playerButton);
             buttonIndex++;
         }
     }
 }
 
+/**
+ * Executes a special action by a player, possibly targeting another player
+ * @param performer The player performing the special action
+ * @param target The optional target player of the action
+ */
 void CoupGUI::executeSpecialAction(std::shared_ptr<coup::Player> performer, std::shared_ptr<coup::Player> target)
 {
     cout << "DEBUG: Executing special action " << pendingSpecialAction << " by " << performer->name();
@@ -1676,10 +2070,13 @@ void CoupGUI::executeSpecialAction(std::shared_ptr<coup::Player> performer, std:
         addLogMessage("Failed special action by " + performer->name() + ": " + std::string(e.what()));
     }
     
-    // איפוס המצב
+    // Reset the special action state
     cancelSpecialActionSelection();
 }
 
+/**
+ * Cancels any pending special action selection and resets related state variables
+ */
 void CoupGUI::cancelSpecialActionSelection()
 {
     specialActionState = SpecialActionState::NONE;
@@ -1688,15 +2085,21 @@ void CoupGUI::cancelSpecialActionSelection()
     clearPlayerButtons();
 }
 
+/**
+ * Draws the reset button on the game screen
+ */
 void CoupGUI::drawResetButton()
 {
     window.draw(resetButton);
     window.draw(resetButtonText);
 }
 
+/**
+ * Draws the win screen showing the winner and game over options
+ */
 void CoupGUI::drawWinScreen()
 {
-    // רקע חצי שקוף
+    // Semi-transparent background overlay
     window.draw(winOverlay);
 
     // Update victory text
@@ -1708,11 +2111,11 @@ void CoupGUI::drawWinScreen()
     sf::FloatRect subtitleBounds = winSubtitle.getLocalBounds();
     winSubtitle.setPosition((1280 - subtitleBounds.width) / 2, 320);
 
-    // ציור הטקסטים
+    // Draw the text elements
     window.draw(winTitle);
     window.draw(winSubtitle);
 
-    // עדכון מיקום טקסט הכפתורים
+    // Update button text positioning
     sf::FloatRect newGameBounds = newGameButtonText.getLocalBounds();
     newGameButtonText.setPosition(
         newGameButton.getPosition().x + (newGameButton.getSize().x - newGameBounds.width) / 2,
@@ -1725,13 +2128,16 @@ void CoupGUI::drawWinScreen()
         exitButton.getPosition().y + (exitButton.getSize().y - exitBounds.height) / 2 - 5
     );
 
-    // ציור הכפתורים
+    // Draw the buttons
     window.draw(newGameButton);
     window.draw(newGameButtonText);
     window.draw(exitButton);
     window.draw(exitButtonText);
 }
 
+/**
+ * Resets the current game while keeping the same players and roles
+ */
 void CoupGUI::resetGame()
 {
     try {
@@ -1740,7 +2146,7 @@ void CoupGUI::resetGame()
             return;
         }
 
-        // שמירת נתוני השחקנים הקיימים
+        // Store existing player data
         std::vector<std::string> playerNames;
         std::vector<coup::Role> playerRoles;
         
@@ -1751,33 +2157,33 @@ void CoupGUI::resetGame()
             }
         }
         
-        // יצירת משחק חדש
+        // Create a new game instance
         game = std::make_shared<coup::Game>();
         
-        // ניקוי רשימת השחקנים הישנה
+        // Clear the old players list
         realPlayers.clear();
         
-        // יצירת שחקנים חדשים עם אותם שמות ותפקידים
+        // Create new players with the same names and roles
         for (size_t i = 0; i < playerNames.size(); i++) {
             auto newPlayer = game->createPlayer(playerNames[i], playerRoles[i]);
             realPlayers.push_back(newPlayer);
         }
 
-        // חזרה למצב משחק רגיל
+        // Return to normal play state
         currentState = GuiState::PLAYING;
 
-        // איפוס השחקן הנוכחי לראשון ברשימה
+        // Reset current player to the first one
         if (!realPlayers.empty() && realPlayers[0]) {
             currentPlayerName = realPlayers[0]->name();
         }
 
-        // ניקוי מצבים זמניים
+        // Clear temporary states
         waitingForTarget = false;
         pendingActionName = "";
         specialActionState = SpecialActionState::NONE;
         clearPlayerButtons();
 
-        // ניקוי יומן והתראות
+        // Clear logs and notifications
         logMessages.clear();
         while (!notificationQueue.empty()) {
             notificationQueue.pop();
@@ -1791,13 +2197,16 @@ void CoupGUI::resetGame()
     }
 }
 
+/**
+ * Checks if there is a winner in the game and updates the game state accordingly
+ */
 void CoupGUI::checkForWinner()
 {
     if (!game || realPlayers.empty()) {
         return;
     }
 
-    // ספירת שחקנים פעילים
+    // Count active players
     int activePlayers = 0;
     std::shared_ptr<coup::Player> lastActivePlayer = nullptr;
 
@@ -1808,7 +2217,7 @@ void CoupGUI::checkForWinner()
         }
     }
 
-    // אם נשאר רק שחקן אחד פעיל - יש מנצח!
+    // If only one active player remains, we have a winner
     if (activePlayers == 1 && lastActivePlayer) {
         winnerName = lastActivePlayer->name();
         currentState = GuiState::WIN_SCREEN;
@@ -1817,27 +2226,30 @@ void CoupGUI::checkForWinner()
     }
 }
 
+/**
+ * Starts a new game by returning to the setup screen
+ */
 void CoupGUI::startNewGame()
 {
-    // חזרה למסך הגדרות
+    // Return to setup screen
     currentState = GuiState::SETUP;
     currentSetupStep = 0;
     numPlayersToSetup = 0;
     activeInputPlayer = -1;
     currentInputText = "";
     
-    // ניקוי נתוני משחק
+    // Clear game data
     game = nullptr;
     realPlayers.clear();
     setupPlayers.clear();
     
-    // ניקוי מצבים זמניים
+    // Clear temporary states
     waitingForTarget = false;
     pendingActionName = "";
     specialActionState = SpecialActionState::NONE;
     clearPlayerButtons();
     
-    // ניקוי יומן והתראות
+    // Clear logs and notifications
     logMessages.clear();
     while (!notificationQueue.empty()) {
         notificationQueue.pop();
@@ -1846,12 +2258,19 @@ void CoupGUI::startNewGame()
     addNotification("Back to setup screen");
 }
 
+/**
+ * Handles the reset button click event
+ */
 void CoupGUI::handleResetClick()
 {
     addNotification("Resetting game...");
     resetGame();
 }
 
+/**
+ * Handles mouse clicks on the win screen
+ * @param mousePos The position of the mouse click
+ */
 void CoupGUI::handleWinScreenClick(sf::Vector2i mousePos)
 {
     sf::FloatRect newGameBounds = newGameButton.getGlobalBounds();
@@ -1859,19 +2278,23 @@ void CoupGUI::handleWinScreenClick(sf::Vector2i mousePos)
 
     if (newGameBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
     {
-        // כפתור משחק חדש
+        // New Game button
         startNewGame();
     }
     else if (exitBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
     {
-        // כפתור יציאה
+        // Exit button
         window.close();
     }
 }
 
+/**
+ * Draws the setup screen where players configure the game
+ * This handles both player count selection and player configuration
+ */
 void CoupGUI::drawSetupScreen()
 {
-    // כותרת ראשית
+    // Main title
     sf::Text titleText;
     titleText.setFont(mainFont);
     titleText.setString("Coup - Setup");
@@ -1883,7 +2306,7 @@ void CoupGUI::drawSetupScreen()
     window.draw(titleText);
     
     if (currentSetupStep == 0) {
-        // שלב בחירת מספר שחקנים
+        // Player count selection step
         sf::Text instructionText;
         instructionText.setFont(mainFont);
         instructionText.setString("Choose number of players for the game:");
@@ -1893,14 +2316,14 @@ void CoupGUI::drawSetupScreen()
         instructionText.setPosition((1280 - instrBounds.width) / 2, 200);
         window.draw(instructionText);
         
-        // ציור כפתורי מספר שחקנים
+        // Draw player count buttons (2-6 players)
         for (int i = 0; i < 5; i++) {
             window.draw(playerCountButtons[i]);
             window.draw(playerCountTexts[i]);
         }
     }
     else {
-        // שלב הגדרת שחקנים
+        // Player setup step
         sf::Text instructionText;
         instructionText.setFont(mainFont);
         instructionText.setString("Setup players:");
@@ -1909,10 +2332,10 @@ void CoupGUI::drawSetupScreen()
         instructionText.setPosition(50, 170);
         window.draw(instructionText);
         
-        // ציור הגדרות שחקנים
+        // Draw player configuration inputs
         float yPos = 220;
         for (int i = 0; i < numPlayersToSetup; i++) {
-            // מספר שחקן
+            // Player number label
             sf::Text playerNumText;
             playerNumText.setFont(mainFont);
             playerNumText.setString("Player " + std::to_string(i + 1) + ":");
@@ -1921,7 +2344,7 @@ void CoupGUI::drawSetupScreen()
             playerNumText.setPosition(50, yPos);
             window.draw(playerNumText);
             
-            // שדה הזנת שם
+            // Name input field
             if (i < static_cast<int>(setupPlayers.size())) {
                 setupPlayers[i].nameInput.setPosition(200, yPos - 5);
                 setupPlayers[i].nameInput.setSize(sf::Vector2f(150, 30));
@@ -1937,7 +2360,7 @@ void CoupGUI::drawSetupScreen()
                 setupPlayers[i].nameText.setPosition(210, yPos);
                 window.draw(setupPlayers[i].nameText);
                 
-                // כפתורי תפקידים
+                // Role selection buttons
                 std::vector<std::string> roleNames = {"General", "Governor", "Spy", "Baron", "Judge", "Merchant"};
                 std::vector<coup::Role> roles = {coup::Role::GENERAL, coup::Role::GOVERNOR, coup::Role::SPY, 
                                                coup::Role::BARON, coup::Role::JUDGE, coup::Role::MERCHANT};
@@ -1946,9 +2369,9 @@ void CoupGUI::drawSetupScreen()
                     setupPlayers[i].roleButtons[j].setPosition(370 + j * 85, yPos - 5);
                     setupPlayers[i].roleButtons[j].setSize(sf::Vector2f(80, 30));
                     
-                    // צבע לפי אם נבחר
+                    // Highlight selected role in green
                     if (setupPlayers[i].roleSelected && setupPlayers[i].role == roles[j]) {
-                        setupPlayers[i].roleButtons[j].setFillColor(sf::Color(60, 180, 60)); // ירוק
+                        setupPlayers[i].roleButtons[j].setFillColor(sf::Color(60, 180, 60)); // Green
                     } else {
                         setupPlayers[i].roleButtons[j].setFillColor(getRoleColor(roles[j]));
                     }
@@ -1973,7 +2396,7 @@ void CoupGUI::drawSetupScreen()
             yPos += 60;
         }
         
-        // בדיקה אם כל השחקנים מוכנים
+        // Check if all players are ready to start
         bool allReady = true;
         for (int i = 0; i < numPlayersToSetup; i++) {
             if (i >= static_cast<int>(setupPlayers.size()) || 
@@ -1983,13 +2406,13 @@ void CoupGUI::drawSetupScreen()
             }
         }
         
-        // כפתור התחלת משחק
+        // Draw start game button if all players are configured
         if (allReady) {
             window.draw(startGameButton);
             window.draw(startGameButtonText);
         }
         
-        // הוראות
+        // Instructions for players
         sf::Text helpText;
         helpText.setFont(mainFont);
         helpText.setString("Click on the name field to enter a name, and select a role from the buttons");
@@ -2000,17 +2423,21 @@ void CoupGUI::drawSetupScreen()
     }
 }
 
+/**
+ * Handles click events on the setup screen
+ * @param mousePos The position of the mouse click
+ */
 void CoupGUI::handleSetupScreenClick(sf::Vector2i mousePos)
 {
     if (currentSetupStep == 0) {
-        // שלב בחירת מספר שחקנים
+        // Player count selection step
         for (int i = 0; i < 5; i++) {
             sf::FloatRect buttonBounds = playerCountButtons[i].getGlobalBounds();
             if (buttonBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y))) {
-                numPlayersToSetup = i + 2; // 2-6 שחקנים
+                numPlayersToSetup = i + 2; // 2-6 players
                 currentSetupStep = 1;
                 
-                // אתחול מבנה שחקנים
+                // Initialize player setup structures
                 setupPlayers.clear();
                 setupPlayers.resize(numPlayersToSetup);
                 
@@ -2022,17 +2449,17 @@ void CoupGUI::handleSetupScreenClick(sf::Vector2i mousePos)
                 }
                 
                 activeInputPlayer = -1;
-                addNotification("נבחרו " + std::to_string(numPlayersToSetup) + " שחקנים");
+                addNotification(std::to_string(numPlayersToSetup) + " players selected");
                 break;
             }
         }
     }
     else {
-        // שלב הגדרת שחקנים
+        // Player configuration step
         float yPos = 220;
         
         for (int i = 0; i < numPlayersToSetup && i < static_cast<int>(setupPlayers.size()); i++) {
-            // בדיקת לחיצה על שדה שם
+            // Check for clicks on name input fields
             sf::FloatRect nameInputBounds(200, yPos - 5, 150, 30);
             if (nameInputBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y))) {
                 activeInputPlayer = i;
@@ -2040,7 +2467,7 @@ void CoupGUI::handleSetupScreenClick(sf::Vector2i mousePos)
                 break;
             }
             
-            // בדיקת לחיצה על כפתורי תפקידים
+            // Check for clicks on role buttons
             std::vector<coup::Role> roles = {coup::Role::GENERAL, coup::Role::GOVERNOR, coup::Role::SPY, 
                                            coup::Role::BARON, coup::Role::JUDGE, coup::Role::MERCHANT};
             
@@ -2057,10 +2484,10 @@ void CoupGUI::handleSetupScreenClick(sf::Vector2i mousePos)
             yPos += 60;
         }
         
-        // בדיקת לחיצה על כפתור התחלת משחק
+        // Check for clicks on the start game button
         sf::FloatRect startBounds = startGameButton.getGlobalBounds();
         if (startBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y))) {
-            // בדיקה שכל השחקנים מוכנים
+            // Verify all players are ready
             bool allReady = true;
             for (int i = 0; i < numPlayersToSetup; i++) {
                 if (!setupPlayers[i].nameCompleted || !setupPlayers[i].roleSelected) {
@@ -2078,6 +2505,10 @@ void CoupGUI::handleSetupScreenClick(sf::Vector2i mousePos)
     }
 }
 
+/**
+ * Handles text input for player name fields
+ * @param unicode The Unicode value of the character input
+ */
 void CoupGUI::handleTextInput(sf::Uint32 unicode)
 {
     if (currentState != GuiState::SETUP || activeInputPlayer < 0 || 
@@ -2090,7 +2521,7 @@ void CoupGUI::handleTextInput(sf::Uint32 unicode)
             currentInputText.pop_back();
         }
     }
-    else if (unicode == 13) { // Enter
+    else if (unicode == 13) { // Enter key
         if (!currentInputText.empty()) {
             setupPlayers[activeInputPlayer].name = currentInputText;
             setupPlayers[activeInputPlayer].nameCompleted = true;
@@ -2099,46 +2530,50 @@ void CoupGUI::handleTextInput(sf::Uint32 unicode)
             addNotification("Player name saved!");
         }
     }
-    else if (unicode >= 32 && unicode < 128) { // תווים רגילים
-        if (currentInputText.length() < 15) { // הגבלת אורך
+    else if (unicode >= 32 && unicode < 128) { // Standard ASCII characters
+        if (currentInputText.length() < 15) { // Limit name length
             currentInputText += static_cast<char>(unicode);
         }
     }
     
-    // עדכון הטקסט המוצג
+    // Update displayed text
     if (activeInputPlayer >= 0 && activeInputPlayer < static_cast<int>(setupPlayers.size())) {
         setupPlayers[activeInputPlayer].name = currentInputText;
     }
 }
 
+/**
+ * Creates a new game based on the setup configuration
+ * Initializes the game with players and their roles
+ */
 void CoupGUI::createGameFromSetup()
 {
     try {
-        // יצירת משחק חדש
+        // Create new game instance
         game = std::make_shared<coup::Game>();
         realPlayers.clear();
         
-        // יצירת שחקנים על פי ההגדרות
+        // Create players based on configuration
         for (int i = 0; i < numPlayersToSetup; i++) {
             auto player = game->createPlayer(setupPlayers[i].name, setupPlayers[i].role);
             realPlayers.push_back(player);
         }
         
-        // מעבר למצב משחק
+        // Switch to playing state
         currentState = GuiState::PLAYING;
         
-        // הגדרת השחקן הנוכחי
+        // Set current player
         if (!realPlayers.empty()) {
             currentPlayerName = realPlayers[0]->name();
         }
         
-        // ניקוי מצבים זמניים
+        // Reset temporary states
         waitingForTarget = false;
         pendingActionName = "";
         specialActionState = SpecialActionState::NONE;
         clearPlayerButtons();
         
-        // ניקוי יומן והתראות
+        // Clear logs and notifications
         logMessages.clear();
         while (!notificationQueue.empty()) {
             notificationQueue.pop();

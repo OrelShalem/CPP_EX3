@@ -78,14 +78,86 @@ Roles:
 - Judge: Can cancel bribe actions
 - Merchant: Expert in trade matters
 
+## Project Structure
+
+### Main Directories:
+- `src/`: Source code files
+- `src/Roles/`: Implementation of different game roles
+- `assets/`: Graphical resources (fonts)
+- `test/`: Unit test files
+- `bin/`: Compiled binary files
+- `obj/`: Compiled object files
+
+### Core Classes:
+
+#### Game.hpp/cpp
+The core game class that manages game flow, game state, and allowed actions. It is responsible for:
+- Turn management
+- Game rules enforcement
+- Handling player actions
+- Managing overall game state
+
+#### Player.hpp/cpp
+Represents a player in the game with:
+- Name and role
+- Coin count
+- Status (active/eliminated)
+- Special abilities according to their role
+
+#### Role Classes (in Roles/ directory)
+Each role is represented by a separate class implementing its unique abilities:
+- `General.hpp/cpp`: General role with coup abilities
+- `Governor.hpp/cpp`: Governor role with tax cancellation abilities
+- `Spy.hpp/cpp`: Spy role with arrest blocking abilities
+- `Baron.hpp/cpp`: Baron role with economic abilities
+- `Judge.hpp/cpp`: Judge role with bribe cancellation abilities
+- `Merchant.hpp/cpp`: Merchant role with trade abilities
+
+#### CoupGUI.hpp/cpp
+Implementation of the graphical user interface using SFML:
+- Game board display
+- User interaction handling
+- Animations and information display
+- Interface with the game engine
+
+#### GameExceptions.hpp
+Definitions of game-specific exceptions used for error handling and edge cases.
+
+### Core Functionality
+
+#### Game Modes
+- Full graphical interface with SFML
+- Console mode for testing and development
+
+#### Build Structure
+Comprehensive Makefile with capabilities for:
+- Compiling the main project
+- Compiling and running unit tests
+- Memory leak checks with Valgrind
+
+## Testing
+
+The project includes a comprehensive test suite:
+- Unit tests for various classes
+- Edge case tests for special scenarios
+- Integration tests for complete game flow
+
+To run the tests:
+```bash
+make test
+```
+
+## Memory Checks
+
+You can check for memory leaks using Valgrind:
+```bash
+make valgrind
+```
+
 ## Features
 
 - Full graphical interface
 - Player display with name, role, coins, and status
 - Detailed game log
 - Notifications for illegal actions
-- Full English support
-
-## Credits
-
-Created and designed by: <your-name-here> 
+- Full English support 
