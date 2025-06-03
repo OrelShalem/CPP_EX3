@@ -616,27 +616,9 @@ int main()
     {
         if (choice == 1)
         {
-            // הפעלת ממשק גרפי
-            std::shared_ptr<Game> game = std::make_shared<Game>();
-            
-            auto general = game->createPlayer("Dan", Role::GENERAL);
-            auto baron = game->createPlayer("Amit", Role::BARON);
-            auto governor = game->createPlayer("Liat", Role::GOVERNOR);
-            auto spy = game->createPlayer("Noa", Role::SPY);
-            auto merchant = game->createPlayer("Ron", Role::MERCHANT);
-            auto judge = game->createPlayer("Michal", Role::JUDGE);
-            
-            // ריכוז השחקנים במערך
-            std::vector<std::shared_ptr<Player>> players = {
-                general, baron, governor, spy, merchant, judge
-            };
-            
-            // הפעלת הממשק הגרפי עם המשחק והשחקנים שיצרנו
-            CoupGUI gui(game, players);
-            gui.run();
-            
-            
-            
+            // הפעלת ממשק גרפי עם מסך הגדרות
+            CoupGUI gui;
+            gui.run();            
         }
         else if (choice == 2)
         {

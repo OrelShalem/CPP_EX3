@@ -175,67 +175,47 @@ namespace coup
 
     void Game::advanceTurn()
     {
-        cout << "DEBUG Game::advanceTurn: Starting advanceTurn" << endl;
-        
         if (players_.empty())
         {
-            cout << "DEBUG Game::advanceTurn: No players in the game" << endl;
             throw GameException("No players in the game");
         }
 
         // בדיקה שיש לפחות 2 שחקנים לפני תחילת המשחק
         if (!game_started_ && players_.size() < 2)
         {
-            cout << "DEBUG Game::advanceTurn: Not enough players to start game (" << players_.size() << ")" << endl;
             throw GameException("At least 2 players are required to start the game");
         }
 
         if (!game_started_)
         {
-            cout << "DEBUG Game::advanceTurn: Starting game for first time" << endl;
             game_started_ = true;
         }
-        
-        cout << "DEBUG Game::advanceTurn: Current player index before advance: " << current_player_index_ << endl;
-        cout << "DEBUG Game::advanceTurn: Current player name: " << players_[current_player_index_]->name() << endl;
         
         // מנקה את החסימה מ-arrest של השחקן הנוכחי
         players_[current_player_index_]->get_blocked_from_arresting() = false;
         players_[current_player_index_]->setBlockedFromEconomic(false);
 
-
         try
         {
-            cout << "DEBUG Game::advanceTurn: Calling newTurnIncome for " << players_[current_player_index_]->name() << endl;
             if (players_[current_player_index_]->role() == Role::MERCHANT)
             {
                 players_[current_player_index_]->newTurnIncome();
             }
-            cout << "DEBUG Game::advanceTurn: newTurnIncome completed successfully" << endl;
         }
         catch (const InvalidOperation &e)
         {
-            cout << "DEBUG Game::advanceTurn: newTurnIncome threw exception: " << e.what() << endl;
             cerr << e.what() << endl;
         }
+
         // שמירת האינדקס הנוכחי לפני העדכון
         previous_player_index_ = current_player_index_;
         previous_player_ = players_[previous_player_index_];
 
-        cout << "DEBUG Game::advanceTurn: Looking for next active player..." << endl;
         // עדכון האינדקס לשחקן הבא
         do
         {
             current_player_index_ = (current_player_index_ + 1) % players_.size(); // to advance the turn to the next player
-            cout << "DEBUG Game::advanceTurn: Checking player at index " << current_player_index_ << " (" << players_[current_player_index_]->name() << ") - active: " << players_[current_player_index_]->isActive() << endl;
         } while (!players_[current_player_index_]->isActive());
-        
-        cout << "DEBUG Game::advanceTurn: New current player index: " << current_player_index_ << endl;
-        cout << "DEBUG Game::advanceTurn: New current player name: " << players_[current_player_index_]->name() << endl;
-        
-        
-        
-        cout << "DEBUG Game::advanceTurn: advanceTurn completed successfully" << endl;
     }
 
     shared_ptr<Player> &Game::getPlayer()

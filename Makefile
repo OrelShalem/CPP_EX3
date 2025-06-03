@@ -1,7 +1,7 @@
 # קובץ Makefile למשחק coup
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -g
+CXXFLAGS = -std=c++17 -Wall -g
 VALGRIND_FLAGS = --tool=memcheck --leak-check=full --show-possibly-lost=yes --show-reachable=yes --num-callers=20 --track-origins=yes
 SFML_LIBS = -lsfml-graphics -lsfml-window -lsfml-system -lsfml-audio
 

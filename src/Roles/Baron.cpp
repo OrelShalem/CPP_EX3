@@ -1,7 +1,7 @@
 // orel8155@gmail.com
 #include "Baron.hpp"
 #include "../Game.hpp"
-#include <iostream>
+
 namespace coup
 {
 
@@ -18,8 +18,6 @@ namespace coup
 
     void Baron::react_to_sanction()
     {
-        cout << "DEBUG Baron::react_to_sanction: Baron " << name() << " reacting to sanction, gaining 1 coin" << endl;
         addCoins(1);
-        cout << "DEBUG Baron::react_to_sanction: Baron " << name() << " now has " << coins() << " coins" << endl;
     }
 }

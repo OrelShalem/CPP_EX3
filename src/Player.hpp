@@ -56,7 +56,7 @@ namespace coup
         void coup(shared_ptr<Player> &player);
         virtual void newTurnIncome() { throw InvalidOperation("Player doesn't have new turn income"); }
         virtual void react_to_arrest() {}
-        virtual void react_to_sanction() { cout << "Player " << name_ << " cannot gather and tax" << endl; }
+        virtual void react_to_sanction() {}
         virtual void undo(UndoableAction action) { throw InvalidOperation("Player doesn't have undo function"); }
         virtual int view_coins(Player &target) { throw InvalidOperation("Player doesn't have view coins function"); }
         virtual void invest() { throw InvalidOperation("Player doesn't have invest function"); }

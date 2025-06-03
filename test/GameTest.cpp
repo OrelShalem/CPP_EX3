@@ -2,12 +2,6 @@
 
 #include "../src/Game.hpp"
 #include "../src/Player.hpp"
-#include "../src/Roles/Governor.hpp"
-#include "../src/Roles/Merchant.hpp"
-#include "../src/Roles/Judge.hpp"
-#include "../src/Roles/General.hpp"
-#include "../src/Roles/Baron.hpp"
-#include "../src/Roles/Spy.hpp"
 #include "../src/GameExceptions.hpp"
 #include <algorithm>
 #include <stdexcept>

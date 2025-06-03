@@ -15,6 +15,7 @@
 // מצב משחק יחיד
 enum class GuiState
 {
+    SETUP,        // מסך הגדרות ראשוני
     PLAYING,      // מצב משחק אמיתי
     WIN_SCREEN    // מסך ניצחון
 };
@@ -46,6 +47,28 @@ private:
     std::queue<std::string> notificationQueue;
     bool debugMode;
 
+    // Setup screen elements
+    struct PlayerSetup {
+        std::string name;
+        coup::Role role;
+        sf::Text nameText;
+        sf::RectangleShape nameInput;
+        sf::RectangleShape roleButtons[6]; // כפתורים לכל 6 התפקידים
+        sf::Text roleButtonTexts[6];
+        bool nameCompleted;
+        bool roleSelected;
+    };
+    
+    std::vector<PlayerSetup> setupPlayers;
+    int numPlayersToSetup;
+    int currentSetupStep; // 0 = בחירת מספר שחקנים, 1+ = הגדרת שחקנים
+    sf::RectangleShape playerCountButtons[5]; // כפתורים לבחירת 2-6 שחקנים
+    sf::Text playerCountTexts[5];
+    sf::RectangleShape startGameButton;
+    sf::Text startGameButtonText;
+    std::string currentInputText;
+    int activeInputPlayer; // איזה שחקן כרגע מזין שם
+    
     // משחק אמיתי
     std::shared_ptr<coup::Game> game;
     std::vector<std::shared_ptr<coup::Player>> realPlayers;
@@ -118,6 +141,7 @@ private:
     void initializeBasicActions();   // פונקציה לאתחול פעולות בסיסיות
     void initializeResetButton();    // פונקציה לאתחול כפתור ריסט
     void initializeWinScreen();      // פונקציה לאתחול מסך ניצחון
+    void initializeSetupScreen();    // פונקציה לאתחול מסך הגדרות
     // void initializeRealGame();       // פונקציה לאתחול משחק אמיתי עם שחקנים ברירת מחדל
     void initializeGui();            // פונקציה משותפת לאתחול הממשק הגרפי
 
@@ -131,6 +155,7 @@ private:
     void drawPlayerButtons();  // פונקציה לציור כפתורי בחירת שחקנים
     void drawResetButton();    // פונקציה לציור כפתור ריסט
     void drawWinScreen();      // פונקציה לציור מסך ניצחון
+    void drawSetupScreen();    // פונקציה לציור מסך הגדרות
 
     // Utility functions
     sf::Color getRoleColor(coup::Role role);
@@ -141,11 +166,14 @@ private:
     void handleBasicActionClick(int actionIndex);   // טיפול בלחיצה על פעולה בסיסית
     void handleResetClick();                        // טיפול בלחיצה על כפתור ריסט
     void handleWinScreenClick(sf::Vector2i mousePos); // טיפול בלחיצות במסך ניצחון
+    void handleSetupScreenClick(sf::Vector2i mousePos); // טיפול בלחיצות במסך הגדרות
+    void handleTextInput(sf::Uint32 unicode);       // טיפול בהזנת טקסט
     
     // Game management functions
     void resetGame();          // איפוס המשחק מחדש
     void checkForWinner();     // בדיקה אם יש מנצח
     void startNewGame();       // התחלת משחק חדש
+    void createGameFromSetup(); // יצירת משחק מהגדרות
     
     // פונקציות לביצוע פעולות עם בחירת מטרה
     void executeArrest(std::shared_ptr<coup::Player> targetPlayer);
@@ -164,9 +192,9 @@ private:
     void cancelSpecialActionSelection();
 
 public:
-    CoupGUI();  // קונסטרקטור רגיל שיוצר משחק עם שחקנים ברירת מחדל
+    CoupGUI();  // קונסטרקטור שמתחיל במסך הגדרות
     
-    // קונסטרקטור שמקבל משחק ושחקנים קיימים
+    // קונסטרקטור שמקבל משחק ושחקנים קיימים (לא בשימוש כרגע)
     CoupGUI(std::shared_ptr<coup::Game> existingGame, std::vector<std::shared_ptr<coup::Player>> existingPlayers);
     
     ~CoupGUI();

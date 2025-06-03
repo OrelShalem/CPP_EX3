@@ -32,9 +32,7 @@ namespace coup
 
     void General::react_to_arrest()
     {
-        cout << "DEBUG General::react_to_arrest: General " << name() << " reacting to arrest, gaining 1 coin" << endl;
-        // addCoins(1);
-        cout << "DEBUG General::react_to_arrest: General " << name() << " now has " << coins() << " coins" << endl;
+       
     }
 
     void General::undo(UndoableAction action)

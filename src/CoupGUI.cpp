@@ -1,17 +1,14 @@
 #include "CoupGUI.hpp"
 #include <iostream>
 #include <sstream>
-#include <cmath> // עבור std::round
+#include <cmath>
 
-// אתחול הממשק הגרפי (משותף לשני הקונסטרקטורים)
 void CoupGUI::initializeGui()
 {
-    // יצירת חלון SFML
     window.create(sf::VideoMode(1280, 720), "Coup - Game", sf::Style::Titlebar | sf::Style::Close);
     window.setFramerateLimit(60);
     window.setVerticalSyncEnabled(true);
 
-    // טעינת משאבים
     if (!mainFont.loadFromFile("assets/fonts/Heebo-Regular.ttf"))
     {
         std::cerr << "Failed to load main font" << std::endl;
@@ -71,20 +68,29 @@ void CoupGUI::initializeGui()
     initializeWinScreen();
 }
 
-// קונסטרקטור רגיל - יוצר משחק חדש עם שחקני ברירת מחדל
+// קונסטרקטור רגיל - מתחיל במסך הגדרות
 CoupGUI::CoupGUI()
-    : currentState(GuiState::PLAYING),
+    : currentState(GuiState::SETUP),
       globalClock(),
       debugMode(false),
-      game(nullptr)
+      numPlayersToSetup(0),
+      currentSetupStep(0),
+      activeInputPlayer(-1),
+      game(nullptr),
+      waitingForTarget(false),
+      pendingActionName(""),
+      specialActionState(SpecialActionState::NONE),
+      pendingSpecialAction(""),
+      pendingSpecialActionRole(coup::Role::GENERAL),
+      selectedPerformer(nullptr)
 {
-    std::cout << "Initializing Coup Game with default players" << std::endl;
+    std::cout << "Initializing Coup Game Setup Screen" << std::endl;
     
     // אתחול הממשק הגרפי
-    // initializeGui();
+    initializeGui();
     
-    // אתחול המשחק האמיתי עם שחקני ברירת מחדל
-    // initializeRealGame();
+    // אתחול מסך הגדרות
+    initializeSetupScreen();
 }
 
 
@@ -443,6 +449,51 @@ void CoupGUI::initializeWinScreen()
     exitButtonText.setFillColor(sf::Color::White);
 }
 
+void CoupGUI::initializeSetupScreen()
+{
+    // אתחול כפתורי בחירת מספר שחקנים (2-6)
+    float buttonWidth = 80;
+    float buttonHeight = 60;
+    float startX = 350;
+    float startY = 250;
+    float spacingX = 120;
+    
+    for (int i = 0; i < 5; i++) {
+        int playerCount = i + 2; // 2-6 שחקנים
+        
+        playerCountButtons[i].setSize(sf::Vector2f(buttonWidth, buttonHeight));
+        playerCountButtons[i].setPosition(startX + i * spacingX, startY);
+        playerCountButtons[i].setFillColor(sf::Color(70, 130, 180));
+        playerCountButtons[i].setOutlineThickness(3);
+        playerCountButtons[i].setOutlineColor(sf::Color::White);
+        
+        playerCountTexts[i].setFont(mainFont);
+        playerCountTexts[i].setString(std::to_string(playerCount));
+        playerCountTexts[i].setCharacterSize(32);
+        playerCountTexts[i].setFillColor(sf::Color::White);
+        playerCountTexts[i].setPosition(
+            startX + i * spacingX + (buttonWidth - playerCountTexts[i].getLocalBounds().width) / 2,
+            startY + (buttonHeight - playerCountTexts[i].getLocalBounds().height) / 2 - 5
+        );
+    }
+    
+    // כפתור התחלת משחק
+    startGameButton.setSize(sf::Vector2f(200, 60));
+    startGameButton.setPosition(540, 600);
+    startGameButton.setFillColor(sf::Color(60, 180, 60)); // ירוק
+    startGameButton.setOutlineThickness(3);
+    startGameButton.setOutlineColor(sf::Color::White);
+    
+    startGameButtonText.setFont(mainFont);
+    startGameButtonText.setString("Start Game");
+    startGameButtonText.setCharacterSize(24);
+    startGameButtonText.setFillColor(sf::Color::White);
+    startGameButtonText.setPosition(
+        540 + (200 - startGameButtonText.getLocalBounds().width) / 2,
+        600 + (60 - startGameButtonText.getLocalBounds().height) / 2 - 5
+    );
+}
+
 void CoupGUI::run()
 {
     std::cout << "Starting Coup game" << std::endl;
@@ -472,7 +523,14 @@ void CoupGUI::run()
                     }
                     else if (event.key.code == sf::Keyboard::Escape)
                     {
-                        if (waitingForTarget)
+                        if (currentState == GuiState::SETUP && activeInputPlayer >= 0)
+                        {
+                            // ביטול הזנת שם
+                            activeInputPlayer = -1;
+                            currentInputText = "";
+                            addNotification("הזנת השם בוטלה");
+                        }
+                        else if (waitingForTarget)
                         {
                             // ביטול בחירת מטרה לפעולות בסיסיות
                             waitingForTarget = false;
@@ -489,10 +547,23 @@ void CoupGUI::run()
                     }
                 }
 
+                // טיפול בהזנת טקסט
+                if (event.type == sf::Event::TextEntered && currentState == GuiState::SETUP)
+                {
+                    handleTextInput(event.text.unicode);
+                }
+
                 // טיפול באירועי עכבר
                 if (event.type == sf::Event::MouseButtonPressed)
                 {
                     sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+
+                    // === טיפול במסך הגדרות ===
+                    if (currentState == GuiState::SETUP)
+                    {
+                        handleSetupScreenClick(mousePos);
+                        continue; // לא מטפלים בכפתורים אחרים במסך הגדרות
+                    }
 
                     // === טיפול במסך ניצחון ===
                     if (currentState == GuiState::WIN_SCREEN)
@@ -512,15 +583,12 @@ void CoupGUI::run()
                     // === טיפול בפעולות מיוחדות דו-שלביות ===
                     if (specialActionState == SpecialActionState::SELECTING_PERFORMER)
                     {
-                        cout << "DEBUG: Looking for performer selection..." << endl;
                         // בחירת מבצע הפעולה
                         for (size_t i = 0; i < playerButtons.size(); i++)
                         {
                             sf::FloatRect buttonBounds = playerButtons[i].button.getGlobalBounds();
                             if (buttonBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
                             {
-                                cout << "DEBUG: Performer selected: " << playerButtons[i].playerName << endl;
-                                
                                 // מציאת השחקן שנבחר
                                 for (const auto &player : realPlayers)
                                 {
@@ -538,7 +606,7 @@ void CoupGUI::run()
                                         }
                                         else
                                         {
-                                            // ביצוע ישיר ללא מטרה
+                                            // הפעולה לא דורשת מטרה - מבצע ישירות
                                             executeSpecialAction(selectedPerformer);
                                         }
                                         break;
@@ -550,15 +618,12 @@ void CoupGUI::run()
                     }
                     else if (specialActionState == SpecialActionState::SELECTING_TARGET)
                     {
-                        cout << "DEBUG: Looking for target selection..." << endl;
                         // בחירת מטרה לפעולה
                         for (size_t i = 0; i < playerButtons.size(); i++)
                         {
                             sf::FloatRect buttonBounds = playerButtons[i].button.getGlobalBounds();
                             if (buttonBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
                             {
-                                cout << "DEBUG: Target selected: " << playerButtons[i].playerName << endl;
-                                
                                 // מציאת המטרה שנבחרה
                                 for (const auto &player : realPlayers)
                                 {
@@ -575,63 +640,43 @@ void CoupGUI::run()
                     // === טיפול בפעולות בסיסיות (קיים) ===
                     else if (waitingForTarget && !pendingActionName.empty())
                     {
-                        cout << "DEBUG: Looking for player button clicks, pendingAction: " << pendingActionName << endl;
-                        cout << "DEBUG: Number of player buttons: " << playerButtons.size() << endl;
-                        
                         // בדיקה אם לחצו על אחד מכפתורי השחקנים
                         for (size_t i = 0; i < playerButtons.size(); i++)
                         {
                             sf::FloatRect buttonBounds = playerButtons[i].button.getGlobalBounds();
                             if (buttonBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
                             {
-                                cout << "DEBUG: Player button clicked: " << playerButtons[i].playerName << endl;
-                                
                                 // מצאנו את השחקן שנבחר
                                 std::string selectedPlayerName = playerButtons[i].playerName;
-                                
-                                cout << "DEBUG: Searching for player in realPlayers..." << endl;
                                 
                                 // מציאת השחקן ברשימת השחקנים האמיתיים
                                 for (const auto &player : realPlayers)
                                 {
                                     if (player->name() == selectedPlayerName && player->isActive())
                                     {
-                                        cout << "DEBUG: Found target player: " << player->name() << endl;
-                                        cout << "DEBUG: About to execute action: " << pendingActionName << endl;
-                                        
                                         try {
                                             // ביצוע הפעולה המתאימה
                                             if (pendingActionName == "Arrest")
                                             {
-                                                cout << "DEBUG: Calling executeArrest..." << endl;
                                                 executeArrest(player);
-                                                cout << "DEBUG: executeArrest completed" << endl;
                                             }
                                             else if (pendingActionName == "Sanction")
                                             {
-                                                cout << "DEBUG: Calling executeSanction..." << endl;
                                                 executeSanction(player);
-                                                cout << "DEBUG: executeSanction completed" << endl;
                                             }
                                             else if (pendingActionName == "Coup")
                                             {
-                                                cout << "DEBUG: Calling executeCoup..." << endl;
                                                 executeCoup(player);
-                                                cout << "DEBUG: executeCoup completed" << endl;
                                             }
-                                            
-                                            cout << "DEBUG: Action execution successful, cleaning up..." << endl;
                                             
                                             // איפוס מצב בחירת המטרה
                                             waitingForTarget = false;
                                             pendingActionName = "";
                                             clearPlayerButtons();
                                             
-                                            cout << "DEBUG: Cleanup completed" << endl;
                                             break; // יציאה מהלולאה הפנימית בלבד
                                         }
                                         catch (const std::exception &e) {
-                                            cout << "DEBUG: Exception during action execution: " << e.what() << endl;
                                             addNotification("Error: " + std::string(e.what()));
                                             
                                             // נקה גם במקרה של שגיאה
@@ -641,7 +686,6 @@ void CoupGUI::run()
                                             break;
                                         }
                                         catch (...) {
-                                            cout << "DEBUG: Unknown exception during action execution!" << endl;
                                             addNotification("Unknown error occurred!");
                                             
                                             // נקה גם במקרה של שגיאה
@@ -652,7 +696,6 @@ void CoupGUI::run()
                                         }
                                     }
                                 }
-                                cout << "DEBUG: Player not found or inactive: " << selectedPlayerName << endl;
                             }
                         }
                     }
@@ -765,8 +808,16 @@ void CoupGUI::render()
 {
     window.clear();
 
-    // ציור מסך ניצחון או מסך משחק רגיל
-    if (currentState == GuiState::WIN_SCREEN)
+    // ציור מסך לפי המצב הנוכחי
+    if (currentState == GuiState::SETUP)
+    {
+        // ציור רקע פשוט
+        window.draw(background);
+        
+        // ציור מסך הגדרות
+        drawSetupScreen();
+    }
+    else if (currentState == GuiState::WIN_SCREEN)
     {
         // ציור רקע פשוט
         window.draw(background);
@@ -1102,8 +1153,6 @@ void CoupGUI::handleSpecialActionClick(int actionIndex)
 
     const SpecialAction &action = specialActions[actionIndex];
     
-    cout << "DEBUG: Special action clicked: " << action.name << " (role: " << getRoleName(action.requiredRole) << ")" << endl;
-    
     // התחל מנגנון בחירה דו-שלבי
     startSpecialActionSelection(action.name, action.requiredRole);
 }
@@ -1203,21 +1252,17 @@ void CoupGUI::handleBasicActionClick(int actionIndex)
         // ביצוע הפעולה המתאימה
         if (actionName == "Gather")
         {
-            cout<<"here"<<endl;
-            cout<<currentPlayer->name()<<endl;
             currentPlayer->gather();
             addLogMessage(currentPlayerName + " gathered 1 coin");
             
             // עדכון שם השחקן הנוכחי אחרי הפעולה
             currentPlayer = game->getPlayer();
             currentPlayerName = currentPlayer->name();
-            cout<<currentPlayerName<< "gathered" << endl;
         }
 
         else if (actionName == "Tax")
         {
             currentPlayer->tax();
-            cout<<currentPlayer->name()<< "taxed" << endl;
             addLogMessage(currentPlayerName + " taxed and received 2 coins");
             
             // עדכון שם השחקן הנוכחי אחרי הפעולה
@@ -1226,15 +1271,12 @@ void CoupGUI::handleBasicActionClick(int actionIndex)
         }
         else if (actionName == "Bribe")
         {
-            cout << "About to call bribe..." << endl;
             currentPlayer->bribe();
-            cout << "Bribe completed" << endl;
             addLogMessage(currentPlayerName + " bribed another player");
             
             // עדכון שם השחקן הנוכחי אחרי הפעולה
             currentPlayer = game->getPlayer();
             currentPlayerName = currentPlayer->name();
-            cout << "player name: " << currentPlayerName << endl;
         }
         else if (actionName == "Arrest")
         {
@@ -1390,10 +1432,10 @@ void CoupGUI::executeArrest(std::shared_ptr<coup::Player> targetPlayer)
             // אם יש שגיאה בעדכון, נמשיך עם השם הקיים
         }
         
-        addNotification("מעצר בוצע בהצלחה! תור הבא: " + currentPlayerName);
+        addNotification("Arrest completed successfully! Next turn: " + currentPlayerName);
     }
     catch (const std::exception &e) {
-        addNotification("שגיאה במעצר: " + std::string(e.what()));
+        addNotification("Error in arrest: " + std::string(e.what()));
     }
 }
 
@@ -1413,10 +1455,10 @@ void CoupGUI::executeSanction(std::shared_ptr<coup::Player> targetPlayer)
             // אם יש שגיאה בעדכון, נמשיך עם השם הקיים
         }
         
-        addNotification("סנקציה בוצעה בהצלחה! תור הבא: " + currentPlayerName);
+        addNotification("Sanction completed successfully! Next turn: " + currentPlayerName);
     }
     catch (const std::exception &e) {
-        addNotification("שגיאה בסנקציה: " + std::string(e.what()));
+        addNotification("Error in sanction: " + std::string(e.what()));
     }
 }
 
@@ -1436,10 +1478,10 @@ void CoupGUI::executeCoup(std::shared_ptr<coup::Player> targetPlayer)
             // אם יש שגיאה בעדכון, נמשיך עם השם הקיים
         }
         
-        addNotification("הפיכה בוצעה בהצלחה! תור הבא: " + currentPlayerName);
+        addNotification("Coup completed successfully! Next turn: " + currentPlayerName);
     }
     catch (const std::exception &e) {
-        addNotification("שגיאה בהפיכה: " + std::string(e.what()));
+        addNotification("Error in coup: " + std::string(e.what()));
     }
 }
 
@@ -1447,8 +1489,6 @@ void CoupGUI::executeCoup(std::shared_ptr<coup::Player> targetPlayer)
 
 void CoupGUI::startSpecialActionSelection(const std::string& actionName, coup::Role requiredRole)
 {
-    cout << "DEBUG: Starting special action selection for " << actionName << endl;
-    
     // ספירת כמה שחקנים יש מהתפקיד הנדרש
     std::vector<std::shared_ptr<coup::Player>> availablePerformers;
     for (const auto &player : realPlayers)
@@ -1779,7 +1819,31 @@ void CoupGUI::checkForWinner()
 
 void CoupGUI::startNewGame()
 {
-    resetGame();
+    // חזרה למסך הגדרות
+    currentState = GuiState::SETUP;
+    currentSetupStep = 0;
+    numPlayersToSetup = 0;
+    activeInputPlayer = -1;
+    currentInputText = "";
+    
+    // ניקוי נתוני משחק
+    game = nullptr;
+    realPlayers.clear();
+    setupPlayers.clear();
+    
+    // ניקוי מצבים זמניים
+    waitingForTarget = false;
+    pendingActionName = "";
+    specialActionState = SpecialActionState::NONE;
+    clearPlayerButtons();
+    
+    // ניקוי יומן והתראות
+    logMessages.clear();
+    while (!notificationQueue.empty()) {
+        notificationQueue.pop();
+    }
+    
+    addNotification("Back to setup screen");
 }
 
 void CoupGUI::handleResetClick()
@@ -1802,5 +1866,291 @@ void CoupGUI::handleWinScreenClick(sf::Vector2i mousePos)
     {
         // כפתור יציאה
         window.close();
+    }
+}
+
+void CoupGUI::drawSetupScreen()
+{
+    // כותרת ראשית
+    sf::Text titleText;
+    titleText.setFont(mainFont);
+    titleText.setString("Coup - Setup");
+    titleText.setCharacterSize(48);
+    titleText.setFillColor(sf::Color::White);
+    titleText.setStyle(sf::Text::Bold);
+    sf::FloatRect titleBounds = titleText.getLocalBounds();
+    titleText.setPosition((1280 - titleBounds.width) / 2, 100);
+    window.draw(titleText);
+    
+    if (currentSetupStep == 0) {
+        // שלב בחירת מספר שחקנים
+        sf::Text instructionText;
+        instructionText.setFont(mainFont);
+        instructionText.setString("Choose number of players for the game:");
+        instructionText.setCharacterSize(24);
+        instructionText.setFillColor(sf::Color::White);
+        sf::FloatRect instrBounds = instructionText.getLocalBounds();
+        instructionText.setPosition((1280 - instrBounds.width) / 2, 200);
+        window.draw(instructionText);
+        
+        // ציור כפתורי מספר שחקנים
+        for (int i = 0; i < 5; i++) {
+            window.draw(playerCountButtons[i]);
+            window.draw(playerCountTexts[i]);
+        }
+    }
+    else {
+        // שלב הגדרת שחקנים
+        sf::Text instructionText;
+        instructionText.setFont(mainFont);
+        instructionText.setString("Setup players:");
+        instructionText.setCharacterSize(24);
+        instructionText.setFillColor(sf::Color::White);
+        instructionText.setPosition(50, 170);
+        window.draw(instructionText);
+        
+        // ציור הגדרות שחקנים
+        float yPos = 220;
+        for (int i = 0; i < numPlayersToSetup; i++) {
+            // מספר שחקן
+            sf::Text playerNumText;
+            playerNumText.setFont(mainFont);
+            playerNumText.setString("Player " + std::to_string(i + 1) + ":");
+            playerNumText.setCharacterSize(20);
+            playerNumText.setFillColor(sf::Color::White);
+            playerNumText.setPosition(50, yPos);
+            window.draw(playerNumText);
+            
+            // שדה הזנת שם
+            if (i < static_cast<int>(setupPlayers.size())) {
+                setupPlayers[i].nameInput.setPosition(200, yPos - 5);
+                setupPlayers[i].nameInput.setSize(sf::Vector2f(150, 30));
+                setupPlayers[i].nameInput.setFillColor(activeInputPlayer == i ? sf::Color(100, 100, 255) : sf::Color(60, 60, 60));
+                setupPlayers[i].nameInput.setOutlineThickness(2);
+                setupPlayers[i].nameInput.setOutlineColor(sf::Color::White);
+                window.draw(setupPlayers[i].nameInput);
+                
+                setupPlayers[i].nameText.setFont(mainFont);
+                setupPlayers[i].nameText.setString(setupPlayers[i].name);
+                setupPlayers[i].nameText.setCharacterSize(16);
+                setupPlayers[i].nameText.setFillColor(sf::Color::White);
+                setupPlayers[i].nameText.setPosition(210, yPos);
+                window.draw(setupPlayers[i].nameText);
+                
+                // כפתורי תפקידים
+                std::vector<std::string> roleNames = {"General", "Governor", "Spy", "Baron", "Judge", "Merchant"};
+                std::vector<coup::Role> roles = {coup::Role::GENERAL, coup::Role::GOVERNOR, coup::Role::SPY, 
+                                               coup::Role::BARON, coup::Role::JUDGE, coup::Role::MERCHANT};
+                
+                for (int j = 0; j < 6; j++) {
+                    setupPlayers[i].roleButtons[j].setPosition(370 + j * 85, yPos - 5);
+                    setupPlayers[i].roleButtons[j].setSize(sf::Vector2f(80, 30));
+                    
+                    // צבע לפי אם נבחר
+                    if (setupPlayers[i].roleSelected && setupPlayers[i].role == roles[j]) {
+                        setupPlayers[i].roleButtons[j].setFillColor(sf::Color(60, 180, 60)); // ירוק
+                    } else {
+                        setupPlayers[i].roleButtons[j].setFillColor(getRoleColor(roles[j]));
+                    }
+                    
+                    setupPlayers[i].roleButtons[j].setOutlineThickness(1);
+                    setupPlayers[i].roleButtons[j].setOutlineColor(sf::Color::White);
+                    window.draw(setupPlayers[i].roleButtons[j]);
+                    
+                    setupPlayers[i].roleButtonTexts[j].setFont(mainFont);
+                    setupPlayers[i].roleButtonTexts[j].setString(roleNames[j]);
+                    setupPlayers[i].roleButtonTexts[j].setCharacterSize(12);
+                    setupPlayers[i].roleButtonTexts[j].setFillColor(sf::Color::White);
+                    sf::FloatRect textBounds = setupPlayers[i].roleButtonTexts[j].getLocalBounds();
+                    setupPlayers[i].roleButtonTexts[j].setPosition(
+                        370 + j * 85 + (80 - textBounds.width) / 2,
+                        yPos + (30 - textBounds.height) / 2 - 5
+                    );
+                    window.draw(setupPlayers[i].roleButtonTexts[j]);
+                }
+            }
+            
+            yPos += 60;
+        }
+        
+        // בדיקה אם כל השחקנים מוכנים
+        bool allReady = true;
+        for (int i = 0; i < numPlayersToSetup; i++) {
+            if (i >= static_cast<int>(setupPlayers.size()) || 
+                !setupPlayers[i].nameCompleted || !setupPlayers[i].roleSelected) {
+                allReady = false;
+                break;
+            }
+        }
+        
+        // כפתור התחלת משחק
+        if (allReady) {
+            window.draw(startGameButton);
+            window.draw(startGameButtonText);
+        }
+        
+        // הוראות
+        sf::Text helpText;
+        helpText.setFont(mainFont);
+        helpText.setString("Click on the name field to enter a name, and select a role from the buttons");
+        helpText.setCharacterSize(16);
+        helpText.setFillColor(sf::Color(200, 200, 200));
+        helpText.setPosition(50, 680);
+        window.draw(helpText);
+    }
+}
+
+void CoupGUI::handleSetupScreenClick(sf::Vector2i mousePos)
+{
+    if (currentSetupStep == 0) {
+        // שלב בחירת מספר שחקנים
+        for (int i = 0; i < 5; i++) {
+            sf::FloatRect buttonBounds = playerCountButtons[i].getGlobalBounds();
+            if (buttonBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y))) {
+                numPlayersToSetup = i + 2; // 2-6 שחקנים
+                currentSetupStep = 1;
+                
+                // אתחול מבנה שחקנים
+                setupPlayers.clear();
+                setupPlayers.resize(numPlayersToSetup);
+                
+                for (int j = 0; j < numPlayersToSetup; j++) {
+                    setupPlayers[j].name = "";
+                    setupPlayers[j].role = coup::Role::GENERAL;
+                    setupPlayers[j].nameCompleted = false;
+                    setupPlayers[j].roleSelected = false;
+                }
+                
+                activeInputPlayer = -1;
+                addNotification("נבחרו " + std::to_string(numPlayersToSetup) + " שחקנים");
+                break;
+            }
+        }
+    }
+    else {
+        // שלב הגדרת שחקנים
+        float yPos = 220;
+        
+        for (int i = 0; i < numPlayersToSetup && i < static_cast<int>(setupPlayers.size()); i++) {
+            // בדיקת לחיצה על שדה שם
+            sf::FloatRect nameInputBounds(200, yPos - 5, 150, 30);
+            if (nameInputBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y))) {
+                activeInputPlayer = i;
+                currentInputText = setupPlayers[i].name;
+                break;
+            }
+            
+            // בדיקת לחיצה על כפתורי תפקידים
+            std::vector<coup::Role> roles = {coup::Role::GENERAL, coup::Role::GOVERNOR, coup::Role::SPY, 
+                                           coup::Role::BARON, coup::Role::JUDGE, coup::Role::MERCHANT};
+            
+            for (int j = 0; j < 6; j++) {
+                sf::FloatRect roleButtonBounds(370 + j * 85, yPos - 5, 80, 30);
+                if (roleButtonBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y))) {
+                    setupPlayers[i].role = roles[j];
+                    setupPlayers[i].roleSelected = true;
+                    addNotification("Role " + getRoleName(roles[j]) + " for player " + std::to_string(i + 1) + " selected");
+                    break;
+                }
+            }
+            
+            yPos += 60;
+        }
+        
+        // בדיקת לחיצה על כפתור התחלת משחק
+        sf::FloatRect startBounds = startGameButton.getGlobalBounds();
+        if (startBounds.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y))) {
+            // בדיקה שכל השחקנים מוכנים
+            bool allReady = true;
+            for (int i = 0; i < numPlayersToSetup; i++) {
+                if (!setupPlayers[i].nameCompleted || !setupPlayers[i].roleSelected) {
+                    allReady = false;
+                    break;
+                }
+            }
+            
+            if (allReady) {
+                createGameFromSetup();
+            } else {
+                addNotification("Please fill in the details of all players!");
+            }
+        }
+    }
+}
+
+void CoupGUI::handleTextInput(sf::Uint32 unicode)
+{
+    if (currentState != GuiState::SETUP || activeInputPlayer < 0 || 
+        activeInputPlayer >= static_cast<int>(setupPlayers.size())) {
+        return;
+    }
+    
+    if (unicode == 8) { // Backspace
+        if (!currentInputText.empty()) {
+            currentInputText.pop_back();
+        }
+    }
+    else if (unicode == 13) { // Enter
+        if (!currentInputText.empty()) {
+            setupPlayers[activeInputPlayer].name = currentInputText;
+            setupPlayers[activeInputPlayer].nameCompleted = true;
+            activeInputPlayer = -1;
+            currentInputText = "";
+            addNotification("Player name saved!");
+        }
+    }
+    else if (unicode >= 32 && unicode < 128) { // תווים רגילים
+        if (currentInputText.length() < 15) { // הגבלת אורך
+            currentInputText += static_cast<char>(unicode);
+        }
+    }
+    
+    // עדכון הטקסט המוצג
+    if (activeInputPlayer >= 0 && activeInputPlayer < static_cast<int>(setupPlayers.size())) {
+        setupPlayers[activeInputPlayer].name = currentInputText;
+    }
+}
+
+void CoupGUI::createGameFromSetup()
+{
+    try {
+        // יצירת משחק חדש
+        game = std::make_shared<coup::Game>();
+        realPlayers.clear();
+        
+        // יצירת שחקנים על פי ההגדרות
+        for (int i = 0; i < numPlayersToSetup; i++) {
+            auto player = game->createPlayer(setupPlayers[i].name, setupPlayers[i].role);
+            realPlayers.push_back(player);
+        }
+        
+        // מעבר למצב משחק
+        currentState = GuiState::PLAYING;
+        
+        // הגדרת השחקן הנוכחי
+        if (!realPlayers.empty()) {
+            currentPlayerName = realPlayers[0]->name();
+        }
+        
+        // ניקוי מצבים זמניים
+        waitingForTarget = false;
+        pendingActionName = "";
+        specialActionState = SpecialActionState::NONE;
+        clearPlayerButtons();
+        
+        // ניקוי יומן והתראות
+        logMessages.clear();
+        while (!notificationQueue.empty()) {
+            notificationQueue.pop();
+        }
+        
+        addLogMessage("Game started with " + std::to_string(realPlayers.size()) + " players");
+        addNotification("Game started! Turn of " + currentPlayerName);
+        
+        std::cout << "Game created successfully with " << realPlayers.size() << " players" << std::endl;
+        
+    } catch (const std::exception& e) {
+        addNotification("Error creating game: " + std::string(e.what()));
+        std::cerr << "Error creating game: " << e.what() << std::endl;
     }
 }
