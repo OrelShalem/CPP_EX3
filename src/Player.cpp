@@ -196,63 +196,7 @@ namespace coup
         game_.getLastPlayerCouped() = target; // עדכון השחקן האחרון שעבר coup
     }
 
-    int Player::coins() const
-    {
-        return coins_;
-    }
-
-    string Player::name() const
-    {
-        return name_;
-    }
-
-    bool Player::isActive() const
-    {
-        return active_;
-    }
-
-    string &Player::get_last_action()
-    {
-        return last_action_;
-    }
-
-    string &Player::get_last_target()
-    {
-        return last_target_;
-    }
 
 
-
-    void Player::setActive(bool active)
-    {
-        active_ = active;
-    }
-
-    void Player::addCoins(int amount)
-    {
-        coins_ += amount;
-    }
-
-    void Player::removeCoins(int amount)
-    {
-        if (coins_ < amount)
-        {
-            throw NotEnoughCoins("You do not have enough coins to remove");
-        }
-        coins_ -= amount;
-    }
-
-    void Player::checkCoins(int amount) const
-    {
-        if (coins_ < amount)
-        {
-            throw NotEnoughCoins("You do not have enough coins to perform this action");
-        }
-    }
-
-    Role Player::role() const
-    {
-        return role_;
-    }
 
 }

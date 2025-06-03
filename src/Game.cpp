@@ -250,12 +250,7 @@ namespace coup
         }
         throw PlayerNotFound("Player not found: " + name);
     }
-
-    bool Game::isGameStarted() const
-    {
-        // בודק האם המשחק התחיל וגם שיש מספר תקין של שחקנים (בין 2 ל-6)
-        return game_started_ && isValidPlayerCount();
-    }
+    
 
     bool Game::isGameOver() const
     {
@@ -270,18 +265,7 @@ namespace coup
         return active_count <= 1 && game_started_;
     }
 
-    void Game::blockPlayerFromArrest(const string &player_name)
-    {
-        // מוסיף את שם השחקן לרשימת החסומים מ-arrest
-        blocked_from_arrest_players_.push_back(player_name);
-    }
-
-    void Game::clearBlockedFromArrestPlayers()
-    {
-        // מנקה את רשימת השחקנים החסומים מ-arrest
-        blocked_from_arrest_players_.clear();
-    }
-
+    
    
 
 }

@@ -61,30 +61,64 @@ namespace coup
         virtual void invest() { throw InvalidOperation("Player doesn't have invest function"); }
 
         // info
-        int coins() const;                                                    // to get the number of coins the player has
-        void setCoins(int amount) { coins_ = amount; }
-        string name() const;                                                  // to get the name of the player
-        bool isActive() const;                                                // to check if the player is active
-        bool blocked_from_economic() const { return blocked_from_economic_; } // לבדוק אם השחקן חסום מפעולות כלכליות
+        int coins() const
+        {
+            return coins_;
+        }
+        void setCoins(int amount) { coins_ = amount; } // to set the number of coins the player has
+        string name() const
+        {
+            return name_;
+        }
+        bool isActive() const                                                // to check if the player is active
+        {
+            return active_;
+        }
+        bool blocked_from_economic() const { return blocked_from_economic_; } // to check if the player is blocked from economic actions
         bool& get_blocked_from_arresting() { return blocked_from_arresting_; }
-        string &get_last_action();
-        string &get_last_target();
+        string &get_last_action()
+        {
+            return last_action_;
+        }
+        string &get_last_target()
+        {
+            return last_target_;
+        }
 
-        Role role() const; // to get the role of the player (this is a pure virtual function and must be implemented by the derived classes)
+        Role role() const // to get the role of the player (this is a pure virtual function and must be implemented by the derived classes)
+        {
+            return role_;
+        }
 
         // inner functions
         void setBlockedFromEconomic(bool blocked)
         {
             blocked_from_economic_ = blocked;
         }
-        void setActive(bool active);
-        void addCoins(int amount);
-        void removeCoins(int amount);
+        void setActive(bool active){
+            active_ = active;
+        }
+        void addCoins(int amount){
+            coins_ += amount;
+        }
+        void removeCoins(int amount){
+            if (coins_ < amount)
+            {
+                throw NotEnoughCoins("You do not have enough coins to remove");
+            }
+            coins_ -= amount;
+        }
 
         // validations
         void checkTurn() const;
-        void checkCoins(int amount) const;
-        bool mustPerformCoup() const { return coins_ >= 10; } // לבדוק אם השחקן חייב לבצע coup
+        void checkCoins(int amount) const
+        {
+            if (coins_ < amount)
+            {
+                throw NotEnoughCoins("You do not have enough coins to perform this action");
+            }
+        }
+        bool mustPerformCoup() const { return coins_ >= 10; } // to check if the player must perform coup
 
     };
 
