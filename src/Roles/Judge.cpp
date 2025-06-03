@@ -2,7 +2,6 @@
 #include "Judge.hpp"
 #include "../Game.hpp"
 #include "../GameExceptions.hpp"
-#include <iostream>
 namespace coup
 {
 

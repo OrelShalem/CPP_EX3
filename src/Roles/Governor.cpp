@@ -39,46 +39,35 @@ namespace coup
   
     void Governor::undo(UndoableAction action)
     {
-        cout << "DEBUG: Governor attempting to undo action" << endl;
         
         if (action == UndoableAction::TAX )
         {
-            cout << "DEBUG: Undoing TAX action" << endl;
             
             // בדיקה שיש שחקן קודם
             auto &previousPlayer = game_.getPreviousPlayer();
             if (!previousPlayer)
             {
-                cout << "DEBUG: No previous player found" << endl;
                 throw InvalidOperation("No previous player found to undo tax");
             }
             
-            cout << "DEBUG: Previous player: " << previousPlayer->name() << endl;
-            cout << "DEBUG: Current Governor: " << name_ << endl;
             
             // *** בדיקה חשובה: הGovernor לא יכול לבטל tax לעצמו ***
             if (previousPlayer->name() == name_)
             {
-                cout << "DEBUG: Governor cannot undo his own tax action" << endl;
                 throw InvalidOperation("Governor cannot undo his own tax action");
             }
             
             // בדיקה שהפעולה האחרונה של השחקן הקודם הייתה tax
-            cout << "DEBUG: Previous player's last action: " << previousPlayer->get_last_action() << endl;
             if (previousPlayer->get_last_action() != "tax")
             {
-                cout << "DEBUG: Previous player's last action was not tax" << endl;
                 throw InvalidOperation("Previous player's last action was not tax");
             }
             
-            cout << "DEBUG: Cancelling taxes for previous player: " << previousPlayer->name() << endl;
             cancel_taxes(*previousPlayer);
             
-            cout << "DEBUG: Successfully cancelled taxes for " << previousPlayer->name() << endl;
         }
         else
         {
-            cout << "DEBUG: Invalid action type for Governor undo: " << static_cast<int>(action) << endl;
             throw InvalidOperation("Governor can't undo this action");
         }
     }
