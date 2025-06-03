@@ -152,46 +152,7 @@ TEST_CASE("Game: Player lookup functions")
     CHECK_THROWS_AS(game.getPlayerIndex("Charlie"), PlayerNotFound);
 }
 
-TEST_CASE("Game: Pending actions management")
-{
-    Game game;
-    auto player1 = game.createPlayer("Player1", Role::GOVERNOR);
-    auto player2 = game.createPlayer("Player2", Role::MERCHANT);
 
-    // בתחילה אין פעולות ממתינות
-    CHECK_FALSE(game.hasPending("tax", "Player1", ""));
-
-    // רישום פעולה ממתינה
-    game.registerPendingAction("tax", "Player1", "");
-    CHECK(game.hasPending("tax", "Player1", ""));
-
-    // פעולה אחרת לא קיימת
-    CHECK_FALSE(game.hasPending("gather", "Player1", ""));
-    CHECK_FALSE(game.hasPending("tax", "Player2", ""));
-
-    // ניקוי פעולות ממתינות
-    game.clearPendingFor("Player1");
-    CHECK_FALSE(game.hasPending("tax", "Player1", ""));
-}
-
-TEST_CASE("Game: Pending actions with targets")
-{
-    Game game;
-    auto player1 = game.createPlayer("Player1", Role::GENERAL);
-    auto player2 = game.createPlayer("Player2", Role::MERCHANT);
-
-    // רישום פעולה עם יעד
-    game.registerPendingAction("arrest", "Player1", "Player2");
-    CHECK(game.hasPending("arrest", "Player1", "Player2"));
-
-    // פעולה עם יעד שונה לא קיימת
-    CHECK_FALSE(game.hasPending("arrest", "Player1", "Player3"));
-    CHECK_FALSE(game.hasPending("arrest", "Player2", "Player1"));
-
-    // ניקוי
-    game.clearPendingFor("Player1");
-    CHECK_FALSE(game.hasPending("arrest", "Player1", "Player2"));
-}
 
 TEST_CASE("Game: isPlayerActive function")
 {

@@ -3,12 +3,13 @@
 #include "Player.hpp"
 #include "Game.hpp"
 #include "GameExceptions.hpp"
+#include <iostream>
 
 namespace coup
 {
     Player::Player(Game &game, const string &name, Role role)
         : game_(game), name_(name), coins_(0), active_(true), blocked_from_economic_(false),
-          blocked_from_arrest_(false), sanction_turns_remaining_(0), last_action_(""), last_target_(""), role_(role)
+          blocked_from_arresting_(false), last_action_(""), last_target_(""), role_(role)
     {
     }
 
@@ -25,76 +26,64 @@ namespace coup
         }
     }
 
-    void Player::checkAndClearSanction()
-    {
-        // כאשר שחקן מקבל את תורו, יש לבדוק אם יש עליו סנקציה ולהסיר אותה
-        if (blocked_from_economic_ && sanction_turns_remaining_ > 0)
-        {
-            sanction_turns_remaining_ = 0;
-            blocked_from_economic_ = false;
-        }
-    }
-
-    void Player::checkTurnAndClearSanction()
-    {
-        // ראשית מנקים סנקציות
-        checkAndClearSanction();
-        // אז בודקים את התור
-        checkTurn();
-    }
 
     void Player::gather()
     {
-        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
-
+        cout<<"gather"<<endl;
+        if (coins_ >= 10)
+        {
+            throw InvalidOperation("Must perform coup when you have 10 or more coins");
+        }
+        checkTurn();
         if (blocked_from_economic_)
         {
             throw InvalidOperation("You are blocked from economic actions");
         }
 
-        if (coins_ >= 10)
-        {
-            throw InvalidOperation("You must perform a coup when you have 10 or more coins");
-        }
+        
 
         addCoins(1);
         last_action_ = "gather";
         last_target_ = "";
+
+        // מחיקת הפעולה הקודמת מהמפה (אם הייתה)
+
         game_.advanceTurn();
+        cout<<"advance turn"<<endl;
     }
 
     void Player::tax()
     {
-        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
-
+        if (coins_ >= 10)
+        {
+            throw InvalidOperation("Must perform coup when you have 10 or more coins");
+        }
+        checkTurn();
         if (blocked_from_economic_)
         {
             throw InvalidOperation("You are blocked from economic actions");
         }
 
-        if (coins_ >= 10)
-        {
-            throw InvalidOperation("You must perform a coup when you have 10 or more coins");
-        }
-
+        
+        game_.removeCoinsFromBank(2); // remove 2 coins from the bank
         addCoins(2);
         last_action_ = "tax";
         last_target_ = "";
 
-        // רישום הפעולה כממתינה
-        game_.registerPendingAction("tax", name_, "");
+        // רישום הפעולה במפה של השחקנים
 
         game_.advanceTurn();
+
     }
 
     void Player::bribe()
     {
-        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
-
         if (coins_ >= 10)
         {
-            throw InvalidOperation("You must perform a coup when you have 10 or more coins");
+            throw InvalidOperation("Must perform coup when you have 10 or more coins");
         }
+        
+        
         if (coins_ < 4)
         {
             throw InvalidOperation("You do not have enough coins to bribe");
@@ -103,111 +92,158 @@ namespace coup
         last_action_ = "bribe";
         last_target_ = "";
 
-        // רישום הפעולה כממתינה
-        game_.registerPendingAction("bribe", name_, "");
-
-        game_.advanceTurn();
+   
+        // if the player is sanctioned, we need to clear the blocked economic actions
+        if (game_.getPlayerByName(name_)->blocked_from_economic())
+        {
+            game_.getPlayerByName(name_)->setBlockedFromEconomic(false);
+        }
     }
 
-    void Player::arrest(Player &target)
+    void Player::arrest(shared_ptr<Player> &target)
     {
-        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
-
-        if (coins_ >= 10)
+        cout << "DEBUG Player::arrest: Start - " << name_ << " arresting " << target->name() << endl;
+        
+        if (blocked_from_arresting_)
         {
-            throw InvalidOperation("You must perform a coup when you have 10 or more coins");
-        }
-
-        if (blocked_from_arrest_)
-        {
+            cout << "DEBUG Player::arrest: Player " << name_ << " is blocked from arrest" << endl;
             throw InvalidOperation("You are blocked from arrest actions");
         }
 
-        if (last_target_ == target.name() && last_action_ == "arrest")
+        // בדיקה אם השחקן כבר נעצר
+        if (game_.getArrestedPlayerName() == target->name())
         {
+            cout << "DEBUG Player::arrest: Cannot arrest " << target->name() << " - already arrested" << endl;
             throw InvalidOperation("You cannot arrest the same player twice in a row");
         }
 
-        // before arresting, we need to set the last action and target
-        last_action_ = "arrest";
-        last_target_ = target.name();
-
-        // רישום הפעולה כממתינה
-        game_.registerPendingAction("arrest", name_, target.name());
-
-        // now we can react to the arrest
-        target.react_to_arrest();
-
-        // if the target is not a general or merchant, we can remove 1 coin from the target and add 1 coin to the player
-        if (target.role() != Role::GENERAL && target.role() != Role::MERCHANT)
+        if (coins_ >= 10)
         {
-            target.removeCoins(1);
-            addCoins(1);
+            cout << "DEBUG Player::arrest: Cannot arrest - " << name_ << " has " << coins_ << " coins, must coup" << endl;
+            throw InvalidOperation("Must perform coup when you have 10 or more coins");
         }
 
+        cout << "DEBUG Player::arrest: Setting action and target" << endl;
+        // before arresting, we need to set the last action and target
+        last_action_ = "arrest";
+        last_target_ = target->name();
+        game_.setArrestedPlayerName(target->name());
+
+        
+
+        cout << "DEBUG Player::arrest: Calling target->react_to_arrest()" << endl;
+        // now we can react to the arrest
+        target->react_to_arrest();
+
+        cout << "DEBUG Player::arrest: Checking roles - target role: " << (int)target->role() << endl;
+        // if the target is not a general or merchant, we can remove 1 coin from the target and add 1 coin to the player
+        if (target->role() != Role::GENERAL && target->role() != Role::MERCHANT)
+        {
+            cout << "DEBUG Player::arrest: Target is not General/Merchant, transferring coin" << endl;
+            target->removeCoins(1);
+            addCoins(1);
+        }
+        else {
+            cout << "DEBUG Player::arrest: Target is General/Merchant, no coin transfer" << endl;
+        }
+
+        cout << "DEBUG Player::arrest: Advancing turn" << endl;
         game_.advanceTurn();
+
+        
+        
+        cout << "DEBUG Player::arrest: Completed successfully" << endl;
     }
 
     void Player::sanction(Player &target)
     {
-        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
-
+        cout << "DEBUG Player::sanction: Start - " << name_ << " sanctioning " << target.name() << endl;
+        
         if (coins_ >= 10)
         {
+            cout << "DEBUG Player::sanction: Cannot sanction - " << name_ << " has " << coins_ << " coins, must coup" << endl;
             throw InvalidOperation("You must perform a coup when you have 10 or more coins");
         }
+        cout << "DEBUG Player::sanction: Checking if has enough coins (need 3)" << endl;
         checkCoins(3);
+        
+        cout << "DEBUG Player::sanction: Removing 3 coins from " << name_ << endl;
         // pay the sanction
         removeCoins(3);
-
+        game_.addCoinsToBank(3); // add the coins to the bank
+        
+        cout << "DEBUG Player::sanction: Setting action and target" << endl;
         // before sanctioning, we need to set the last action and target
         last_action_ = "sanction";
         last_target_ = target.name();
 
-        // רישום הפעולה כממתינה
-        game_.registerPendingAction("sanction", name_, target.name());
+        
 
+        cout << "DEBUG Player::sanction: Blocking target from economic actions" << endl;
         // block the target from economic actions
-        target.setBlocked(true, false);
+        target.setBlockedFromEconomic(true);
 
-        // הגדרת הסנקציה לתור הבא (משתמשים ב-1 כדי לסמן שיש סנקציה פעילה)
-        target.setSanctionTurns(1);
+       
 
+        cout << "DEBUG Player::sanction: Calling target.react_to_sanction()" << endl;
         // now we can react to the sanction
-        target.react_to_sanction();
+        try 
+        {
+            target.react_to_sanction();
+            cout << "DEBUG Player::sanction: react_to_sanction completed normally" << endl;
+        }
+        catch (const InvalidOperation &e)
+        {
+            cout << "DEBUG Player::sanction: react_to_sanction threw exception: " << e.what() << endl;
+            removeCoins(1);
+            game_.addCoinsToBank(1); // add the coin to the bank
+        }
 
+        cout << "DEBUG Player::sanction: Advancing turn" << endl;
         game_.advanceTurn();
+
+     
+        
+        cout << "DEBUG Player::sanction: Completed successfully" << endl;
     }
 
-    void Player::coup(Player &target)
+    void Player::coup(shared_ptr<Player> &target)
     {
-        checkTurnAndClearSanction(); // משתמשים בפונקציה המשולבת
+        cout << "DEBUG Player::coup: Starting coup by " << name_ << " against " << target->name() << endl;
+        // checkTurn();
 
+        cout << "DEBUG Player::coup: Checking if has enough coins (need 7)" << endl;
         checkCoins(7);
 
         // בודק שהשחקן היעד פעיל לפני הסרתו
-        if (!target.isActive())
+        if (!target->isActive())
         {
+            cout << "DEBUG Player::coup: Target " << target->name() << " is inactive, cannot coup" << endl;
             throw InvalidOperation("Cannot coup an inactive player");
         }
 
+        cout << "DEBUG Player::coup: Removing 7 coins from " << name_ << endl;
         // מסיר מטבעות רק לאחר שוידאנו שהפעולה חוקית
         removeCoins(7);
 
+       
+
+        cout << "DEBUG Player::coup: Setting target " << target->name() << " as inactive" << endl;
         // מעביר את שם השחקן היעד לפונקציה removePlayer
-        game_.removePlayer(target.name());
+        target->setActive(false); // מסמן את השחקן היעד כלא פעיל
 
+        cout << "DEBUG Player::coup: Setting action and target" << endl;
         last_action_ = "coup";
-        last_target_ = target.name();
+        last_target_ = target->name();
 
-        // רישום הפעולה כממתינה רק אם השחקן הוא לא גנרל
-        // (כי רק גנרל יכול לבטל coup)
-        if (target.role() != Role::GENERAL)
-        {
-            game_.registerPendingAction("coup", name_, target.name());
-        }
-
+        cout << "DEBUG Player::coup: Removing player " << target->name() << endl;
+        cout << "DEBUG Player::coup: Advancing turn after coup" << endl;
         game_.advanceTurn();
+        
+        cout << "DEBUG Player::coup: Setting last player couped" << endl;
+        game_.getLastPlayerCouped() = target; // עדכון השחקן האחרון שעבר coup
+        
+        cout << "DEBUG Player::coup: Completed successfully" << endl;
     }
 
     int Player::coins() const
@@ -235,16 +271,7 @@ namespace coup
         return last_target_;
     }
 
-    void Player::setBlocked(bool from_economic, bool from_arrest)
-    {
-        blocked_from_economic_ = from_economic;
-        blocked_from_arrest_ = from_arrest;
-    }
 
-    void Player::setSanctionTurns(int turns)
-    {
-        sanction_turns_remaining_ = turns;
-    }
 
     void Player::setActive(bool active)
     {
@@ -273,36 +300,9 @@ namespace coup
         }
     }
 
-    void Player::undo(Player &target)
-    {
-        if (!can_undo(target.get_last_action()))
-        {
-            throw InvalidOperation("Player cannot undo this action");
-        }
-
-        target.handle_undo(target);
-    }
-
     Role Player::role() const
     {
         return role_;
     }
 
-    // מימושי ברירת מחדל לפעולות מיוחדות
-    void Player::invest()
-    {
-        throw InvalidOperation("This player cannot invest");
-    }
-
-    void Player::block_arrest(Player &target)
-    {
-        (void)target; // למנוע warning על פרמטר לא בשימוש
-        throw InvalidOperation("This player cannot block arrest");
-    }
-
-    void Player::block_coup(Player &target)
-    {
-        (void)target; // למנוע warning על פרמטר לא בשימוש
-        throw InvalidOperation("This player cannot block coup");
-    }
 }

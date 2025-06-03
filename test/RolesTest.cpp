@@ -47,7 +47,7 @@ TEST_CASE("Governor: React to arrest - no coin loss")
 
     // General מעצר את Governor בתורו
     governor->gather(); // העברת תור ל-General
-    general->arrest(*governor);
+    general->arrest(governor);
 
     // Governor לא מאבד מטבעות (react_to_arrest ריק)
     CHECK(governor->coins() == 5);
@@ -104,7 +104,7 @@ TEST_CASE("Merchant: React to arrest - loses coins")
 
     // General מעצר את Merchant בתורו
     merchant->gather(); // העברת תור ל-General
-    general->arrest(*merchant);
+    general->arrest(merchant);
 
     // Merchant לא מאבד מטבעות (react_to_arrest לא עובד כמצופה)
     CHECK(merchant->coins() == 5);
@@ -124,7 +124,7 @@ TEST_CASE("Merchant: React to arrest with few coins")
 
     // General מעצר את Merchant בתורו
     merchant->gather(); // העברת תור ל-General
-    general->arrest(*merchant);
+    general->arrest(merchant);
 
     // Merchant מאבד מטבעות (react_to_arrest עובד)
     CHECK(merchant->coins() == 0); // 1 + 1 מ-gather - 2 מ-react_to_arrest
@@ -145,7 +145,7 @@ TEST_CASE("General: React to arrest - gains coin")
     general2->addCoins(3);
 
     // General1 מעצר את General2 בתורו
-    general1->arrest(*general2);
+    general1->arrest(general2);
 
     // General2 מקבל מטבע (react_to_arrest אוטומטי)
     CHECK(general2->coins() == 4); // 3 + 1 = 4

@@ -184,7 +184,7 @@ TEST_CASE("Edge Case: Using coup with insufficient coins")
     CHECK(governor->coins() == 0);
 
     // ניסיון לבצע coup עם מטבעות לא מספיקים
-    CHECK_THROWS_AS(governor->coup(*merchant), NotEnoughCoins);
+    CHECK_THROWS_AS(governor->coup(merchant), NotEnoughCoins);
 
     // גם עם 6 מטבעות זה לא מספיק
     governor->tax(); // +3 = 3
@@ -193,7 +193,7 @@ TEST_CASE("Edge Case: Using coup with insufficient coins")
     merchant->gather();
 
     CHECK(governor->coins() == 6);
-    CHECK_THROWS_AS(governor->coup(*merchant), NotEnoughCoins);
+    CHECK_THROWS_AS(governor->coup(merchant), NotEnoughCoins);
 }
 
 TEST_CASE("Edge Case: Successful coup with exactly 7 coins")
@@ -213,7 +213,7 @@ TEST_CASE("Edge Case: Successful coup with exactly 7 coins")
     CHECK(governor->coins() == 7);
 
     // coup צריך לעבוד
-    governor->coup(*merchant);
+    governor->coup(merchant);
 
     // Governor צריך להישאר עם 0 מטבעות (7-7=0)
     CHECK(governor->coins() == 0);
@@ -239,7 +239,7 @@ TEST_CASE("Edge Case: Forced coup with 10+ coins")
     CHECK(player1->coins() == 10);
 
     // Player1 יכול לבצע coup
-    player1->coup(*player2);
+    player1->coup(player2);
     CHECK(player1->coins() == 3); // 10-7=3
 
     // Player1 צריך לנצח כי player2 הוסר
@@ -309,7 +309,7 @@ TEST_CASE("Edge Case: Arrest functionality")
     CHECK(spy->coins() == 1);
 
     // General מעצר את Spy
-    general->arrest(*spy);
+    general->arrest(spy);
 
     // General מקבל מטבע נוסף מהמעצר (כי Spy לא General או Merchant)
     // Spy מאבד מטבע
@@ -394,7 +394,7 @@ TEST_CASE("Edge Case: Invalid coin operations")
 
     // ניסיון לבצע coup עם מטבעות שליליים
     CHECK(governor->coins() == 0);
-    CHECK_THROWS_AS(governor->coup(*merchant), NotEnoughCoins);
+    CHECK_THROWS_AS(governor->coup(merchant), NotEnoughCoins);
 
     // בדיקה שלא ניתן להוריד מטבעות מתחת ל-0
     CHECK_THROWS_AS(governor->removeCoins(5), runtime_error);
@@ -426,7 +426,7 @@ TEST_CASE("Edge Case: Player trying to act after being eliminated")
     CHECK(governor->coins() == 7);
 
     // Governor מבצע coup על Merchant
-    governor->coup(*merchant);
+    governor->coup(merchant);
 
     // Merchant נפסל
     CHECK_FALSE(merchant->isActive());
@@ -449,7 +449,7 @@ TEST_CASE("Edge Case: Player trying to coup themselves")
 
     // coup על עצמו לא נחסם בקוד - הוא יעבוד ויסיר את השחקן מהמשחק
     // אבל זה יגרום לכך שהמשחק יסתיים מיד
-    governor->coup(*governor);
+    governor->coup(governor);
 
     // Governor נפסל
     CHECK_FALSE(governor->isActive());
@@ -473,7 +473,7 @@ TEST_CASE("Edge Case: Turn order after player elimination")
     player1->addCoins(7);
 
     // Player1 מבצע coup על Player2
-    player1->coup(*player2);
+    player1->coup(player2);
 
     // Player2 נפסל
     CHECK_FALSE(player2->isActive());
@@ -500,7 +500,7 @@ TEST_CASE("Edge Case: Multiple consecutive eliminations")
     player1->addCoins(14); // מספיק ל-2 coups
 
     // Player1 מבצע coup על Player2
-    player1->coup(*player2);
+    player1->coup(player2);
     CHECK_FALSE(player2->isActive());
     CHECK(player1->coins() == 7); // 14-7=7
 
@@ -516,7 +516,7 @@ TEST_CASE("Edge Case: Multiple consecutive eliminations")
     CHECK(game.turn() == Role::GOVERNOR);
 
     // Player1 מבצע coup נוסף על Player3
-    player1->coup(*player3);
+    player1->coup(player3);
     CHECK_FALSE(player3->isActive());
     CHECK(player1->coins() == 0); // 7-7=0
 

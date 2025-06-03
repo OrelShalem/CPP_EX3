@@ -10,9 +10,8 @@ namespace coup
     public:
         Merchant(Game &game, const string &name, Role role) : Player(game, name, role) {};
         ~Merchant() override = default;
-
-        void gather() override;
-
+        
+        void newTurnIncome() override;
         void react_to_arrest() override;
     };
 }

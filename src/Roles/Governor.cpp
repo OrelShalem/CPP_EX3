@@ -7,50 +7,24 @@ namespace coup
 
     void Governor::tax()
     {
-        checkTurnAndClearSanction();
 
         if (blocked_from_economic_)
         {
             throw InvalidOperation("Governor is blocked from economic actions");
         }
+        if (coins_ >= 10){
+            throw InvalidOperation("Governor must perform a coup he has more than 10 coins");
+        }
         addCoins(3);
         last_action_ = "tax";
         last_target_ = "";
 
-        // רישום הפעולה כממתינה
-        game_.registerPendingAction("tax", name_, "");
 
         game_.advanceTurn();
     }
 
-    void Governor::react_to_arrest()
+    void Governor::cancel_taxes(Player &target)
     {
-        // Governor doesn't lose coins when arrested
-        // No need to advance turn here as it's already done in the arrest function
-    }
-
-    bool Governor::can_undo(const string &action) const
-    {
-        return action == "tax"; // can undo tax
-    }
-
-    void Governor::handle_undo(Player &target)
-    {
-        if (!isActive())
-        {
-            throw InvalidOperation("Governor is not active");
-        }
-
-        if (!can_undo(target.get_last_action()))
-        {
-            throw InvalidOperation("Governor cannot undo this action");
-        }
-
-        // בדיקה אם קיימת פעולת tax ממתינה
-        if (!game_.hasPending("tax", target.name(), ""))
-        {
-            throw InvalidOperation("No pending tax action to undo");
-        }
 
         if (target.role() == Role::GOVERNOR)
         {
@@ -60,9 +34,53 @@ namespace coup
         {
             target.removeCoins(2); // regular player remove 2 coins
         }
+    }
 
-        // ניקוי הפעולה הממתינה
-        game_.clearPendingFor("tax");
+  
+    void Governor::undo(UndoableAction action)
+    {
+        cout << "DEBUG: Governor attempting to undo action" << endl;
+        
+        if (action == UndoableAction::TAX )
+        {
+            cout << "DEBUG: Undoing TAX action" << endl;
+            
+            // בדיקה שיש שחקן קודם
+            auto &previousPlayer = game_.getPreviousPlayer();
+            if (!previousPlayer)
+            {
+                cout << "DEBUG: No previous player found" << endl;
+                throw InvalidOperation("No previous player found to undo tax");
+            }
+            
+            cout << "DEBUG: Previous player: " << previousPlayer->name() << endl;
+            cout << "DEBUG: Current Governor: " << name_ << endl;
+            
+            // *** בדיקה חשובה: הGovernor לא יכול לבטל tax לעצמו ***
+            if (previousPlayer->name() == name_)
+            {
+                cout << "DEBUG: Governor cannot undo his own tax action" << endl;
+                throw InvalidOperation("Governor cannot undo his own tax action");
+            }
+            
+            // בדיקה שהפעולה האחרונה של השחקן הקודם הייתה tax
+            cout << "DEBUG: Previous player's last action: " << previousPlayer->get_last_action() << endl;
+            if (previousPlayer->get_last_action() != "tax")
+            {
+                cout << "DEBUG: Previous player's last action was not tax" << endl;
+                throw InvalidOperation("Previous player's last action was not tax");
+            }
+            
+            cout << "DEBUG: Cancelling taxes for previous player: " << previousPlayer->name() << endl;
+            cancel_taxes(*previousPlayer);
+            
+            cout << "DEBUG: Successfully cancelled taxes for " << previousPlayer->name() << endl;
+        }
+        else
+        {
+            cout << "DEBUG: Invalid action type for Governor undo: " << static_cast<int>(action) << endl;
+            throw InvalidOperation("Governor can't undo this action");
+        }
     }
 
 }

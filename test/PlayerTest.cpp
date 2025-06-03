@@ -121,7 +121,7 @@ TEST_CASE("Player: Arrest functionality")
     CHECK(spy->coins() == 3);
 
     // General מעצר את Spy
-    general->arrest(*spy);
+    general->arrest(spy);
 
     // General מקבל מטבע נוסף (כי Spy לא General או Merchant)
     // Spy מאבד מטבע
@@ -142,7 +142,7 @@ TEST_CASE("Player: Arrest on General/Merchant - no coin transfer")
     merchant->addCoins(3);
 
     // General1 מעצר את General2 - אין העברת מטבעות
-    general1->arrest(*general2);
+    general1->arrest(general2);
     CHECK(general1->coins() == 2); // לא השתנה
     CHECK(general2->coins() == 4); // 3 + 1 (react_to_arrest של General)
 
@@ -150,7 +150,7 @@ TEST_CASE("Player: Arrest on General/Merchant - no coin transfer")
     merchant->gather(); // העברת תור
 
     // General1 מעצר את Merchant - אין העברת מטבעות
-    general1->arrest(*merchant);
+    general1->arrest(merchant);
     CHECK(general1->coins() == 2); // לא השתנה
     CHECK(merchant->coins() == 3); // לא השתנה (Merchant לא מקבל מטבע מ-react_to_arrest)
 }
@@ -184,7 +184,7 @@ TEST_CASE("Player: Coup functionality")
     auto player2 = game.createPlayer("Player2", Role::MERCHANT);
 
     // ניסיון coup ללא מספיק מטבעות
-    CHECK_THROWS_AS(player1->coup(*player2), NotEnoughCoins);
+    CHECK_THROWS_AS(player1->coup(player2), NotEnoughCoins);
 
     // הוספת מטבעות
     player1->addCoins(7);
@@ -192,7 +192,7 @@ TEST_CASE("Player: Coup functionality")
     CHECK(player2->isActive() == true);
 
     // coup צריך לעבוד
-    player1->coup(*player2);
+    player1->coup(player2);
     CHECK(player1->coins() == 0); // 7 - 7 = 0
     CHECK(player2->isActive() == false);
 
@@ -216,7 +216,7 @@ TEST_CASE("Player: Coup on inactive player")
     CHECK_FALSE(player2->isActive());
 
     // ניסיון coup על שחקן לא פעיל צריך לזרוק חריגה
-    CHECK_THROWS_AS(player1->coup(*player2), InvalidOperation);
+    CHECK_THROWS_AS(player1->coup(player2), InvalidOperation);
 
     // המטבעות צריכים להישאר ללא שינוי
     CHECK(player1->coins() == 7);
@@ -276,7 +276,7 @@ TEST_CASE("Player: Forced coup with 10+ coins")
     CHECK_THROWS_AS(player1->gather(), InvalidOperation);
 
     // רק coup מותר
-    player1->coup(*player2);
+    player1->coup(player2);
     CHECK(player1->coins() == 3); // 10 - 7 = 3
     CHECK_FALSE(player2->isActive());
 }
@@ -330,7 +330,7 @@ TEST_CASE("Player: Last action tracking")
     player1->addCoins(7);
 
     // ביצוע coup
-    player1->coup(*player2);
+    player1->coup(player2);
     CHECK(player1->get_last_action() == "coup");
     CHECK(player1->get_last_target() == "Player2");
 }
@@ -348,7 +348,7 @@ TEST_CASE("Player: Arrest same target twice restriction")
     spy2->addCoins(2);
 
     // General מעצר את Spy1
-    general->arrest(*spy1);
+    general->arrest(spy1);
     CHECK(general->get_last_action() == "arrest");
     CHECK(general->get_last_target() == "Spy1");
 
@@ -356,10 +356,10 @@ TEST_CASE("Player: Arrest same target twice restriction")
     spy2->gather(); // העברת תור
 
     // ניסיון לעצור את אותו שחקן שוב צריך לזרוק חריגה
-    CHECK_THROWS_AS(general->arrest(*spy1), InvalidOperation);
+    CHECK_THROWS_AS(general->arrest(spy1), InvalidOperation);
 
     // אבל מעצר של שחקן אחר צריך לעבוד
-    general->arrest(*spy2);
+    general->arrest(spy2);
     CHECK(general->get_last_target() == "Spy2");
 }
 

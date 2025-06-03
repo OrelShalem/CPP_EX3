@@ -2,15 +2,14 @@
 #include "Game.hpp"
 #include "Player.hpp"
 #include "Roles/General.hpp"
-#include "Roles/Merchant.hpp"
 #include "Roles/Governor.hpp"
 #include "Roles/Spy.hpp"
 #include "Roles/Baron.hpp"
 #include "Roles/Judge.hpp"
 #include "GameExceptions.hpp"
-
+#include "CoupGUI.hpp"
+#include <SFML/System/Thread.hpp>
 #include <iostream>
-#include <stdexcept>
 #include <vector>
 #include <exception>
 #include <random>
@@ -138,7 +137,7 @@ public:
         {
             if (action == "arrest")
             {
-                player->arrest(*target);
+                player->arrest(target);
                 printAction(player->name(), "arrest", target->name());
             }
             else if (action == "sanction")
@@ -149,7 +148,7 @@ public:
             else if (action == "coup")
             {
                 string targetName = target->name();
-                player->coup(*target);
+                player->coup(target);
                 printAction(player->name(), "coup", targetName);
             }
         }
@@ -203,8 +202,11 @@ public:
 
             if (role == Role::BARON)
             {
-                player->invest();
-                printAction(player->name(), "invest (special)");
+                auto baron = dynamic_cast<Baron *>(player.get());
+                if (baron)
+                {
+                    
+                }
                 return;
             }
             else if (role == Role::SPY)
@@ -212,8 +214,12 @@ public:
                 auto target = selectRandomTarget(player);
                 if (target)
                 {
-                    player->block_arrest(*target);
-                    printAction(player->name(), "block_arrest (special)", target->name());
+                    auto spy = dynamic_cast<Spy *>(player.get());
+                    if (spy)
+                    {
+                        spy->undo(UndoableAction::ARREST);
+                        printAction(player->name(), "block_arrest (special)", target->name());
+                    }
                     return;
                 }
             }
@@ -222,8 +228,12 @@ public:
                 auto target = selectRandomTarget(player);
                 if (target)
                 {
-                    player->undo(*target);
-                    printAction(player->name(), "undo tax (special)", target->name());
+                    auto governor = dynamic_cast<Governor *>(player.get());
+                    if (governor && target->get_last_action() == "tax")
+                    {
+                        governor->undo(UndoableAction::TAX);
+                        printAction(player->name(), "cancel_taxes (special)", target->name());
+                    }
                     return;
                 }
             }
@@ -232,8 +242,12 @@ public:
                 auto target = selectRandomTarget(player);
                 if (target)
                 {
-                    player->undo(*target);
-                    printAction(player->name(), "undo bribe (special)", target->name());
+                    auto judge = dynamic_cast<Judge *>(player.get());
+                    if (judge && target->get_last_action() == "bribe")
+                    {
+                        judge->undo(UndoableAction::BRIBE);
+                        printAction(player->name(), "cancel_bribe (special)", target->name());
+                    }
                     return;
                 }
             }
@@ -242,8 +256,12 @@ public:
                 auto target = selectRandomTarget(player);
                 if (target)
                 {
-                    player->block_coup(*target);
-                    printAction(player->name(), "block_coup (special)", target->name());
+                    auto general = dynamic_cast<General *>(player.get());
+                    if (general)
+                    {
+                        general->undo(UndoableAction::COUP);
+                        printAction(player->name(), "block_coup (special)", target->name());
+                    }
                     return;
                 }
             }
@@ -278,7 +296,7 @@ public:
             {
                 try
                 {
-                    player->coup(*target);
+                    player->coup(target);
                     printAction(player->name(), "coup (mandatory)", target->name());
                     return;
                 }
@@ -301,7 +319,7 @@ public:
             {
                 try
                 {
-                    player->coup(*target);
+                    player->coup(target);
                     printAction(player->name(), "coup", target->name());
                     return;
                 }
@@ -426,6 +444,7 @@ public:
                 {
                     samePlayerCount = 0;
                     lastPlayer = currentPlayerName;
+                    cout << "\n🔄 Switching to player: " << currentPlayerName << endl;
                 }
 
                 if (verboseMode)
@@ -483,45 +502,45 @@ public:
     }
 };
 
-void runDemoGame()
-{
-    cout << "=== Game Manual Demo ===" << endl;
+// void runDemoGame()
+// {
+//     cout << "=== Game Manual Demo ===" << endl;
 
-    Game demoGame;
-    auto governor = demoGame.createPlayer("Moses", Role::GOVERNOR);
-    auto spy = demoGame.createPlayer("Joseph", Role::SPY);
-    auto baron = demoGame.createPlayer("Michael", Role::BARON);
-    auto general = demoGame.createPlayer("Roy", Role::GENERAL);
-    auto judge = demoGame.createPlayer("Gilad", Role::JUDGE);
+//     Game demoGame;
+//     auto governor = demoGame.createPlayer("Moses", Role::GOVERNOR);
+//     auto spy = demoGame.createPlayer("Joseph", Role::SPY);
+//     auto baron = demoGame.createPlayer("Michael", Role::BARON);
+//     auto general = demoGame.createPlayer("Roy", Role::GENERAL);
+//     auto judge = demoGame.createPlayer("Gilad", Role::JUDGE);
 
-    try
-    {
-        // Short demo
-        cout << "Players: ";
-        for (const auto &name : demoGame.players())
-        {
-            cout << name << " ";
-        }
-        cout << endl;
+//     try
+//     {
+//         // Short demo
+//         cout << "Players: ";
+//         for (const auto &name : demoGame.players())
+//         {
+//             cout << name << " ";
+//         }
+//         cout << endl;
 
-        governor->gather();
-        spy->gather();
-        baron->gather();
-        general->gather();
-        judge->gather();
+//         governor->gather();
+//         spy->gather();
+//         baron->gather();
+//         general->gather();
+//         judge->gather();
 
-        cout << "After gather round:" << endl;
-        cout << "Moses: " << governor->coins() << " coins" << endl;
-        cout << "Joseph: " << spy->coins() << " coins" << endl;
+//         cout << "After gather round:" << endl;
+//         cout << "Moses: " << governor->coins() << " coins" << endl;
+//         cout << "Joseph: " << spy->coins() << " coins" << endl;
 
-        governor->tax(); // Governor gets 3
-        cout << "Moses after tax: " << governor->coins() << " coins" << endl;
-    }
-    catch (const exception &e)
-    {
-        cout << "Demo error: " << e.what() << endl;
-    }
-}
+//         governor->tax(); // Governor gets 3
+//         cout << "Moses after tax: " << governor->coins() << " coins" << endl;
+//     }
+//     catch (const exception &e)
+//     {
+//         cout << "Demo error: " << e.what() << endl;
+//     }
+// }
 
 // void runMultipleRandomGames(int numGames)
 // {
@@ -564,49 +583,79 @@ void runDemoGame()
 //     }
 // }
 
+void runRandomGame()
+{
+    cout << "\n=== Running Random Game ===" << endl;
+    
+    Game game;
+    auto general = game.createPlayer("Dan", Role::GENERAL);
+    auto merchant = game.createPlayer("Ron", Role::MERCHANT);
+    auto governor = game.createPlayer("Liat", Role::GOVERNOR);
+    auto spy = game.createPlayer("Noa", Role::SPY);
+    auto baron = game.createPlayer("Amit", Role::BARON);
+    auto judge = game.createPlayer("Michal", Role::JUDGE);
+
+    vector<shared_ptr<Player>> players = {general, merchant, governor, spy, baron, judge};
+
+    GameSimulator simulator(game, players, true);
+    simulator.runRandomGame();
+}
+
 int main()
 {
+    cout << "=== Welcome to Coup! ===" << endl;
+    cout << "Please choose an option:" << endl;
+    cout << "1. Run GUI" << endl;
+    cout << "2. Run random game" << endl;
+    cout << "Choose an option (1-2): ";
+    
+    int choice;
+    cin >> choice;
+    
     try
     {
-        // Short manual demo
-        runDemoGame();
+        if (choice == 1)
+        {
+            // הפעלת ממשק גרפי
+            std::shared_ptr<Game> game = std::make_shared<Game>();
+            
+            auto general = game->createPlayer("Dan", Role::GENERAL);
+            auto baron = game->createPlayer("Amit", Role::BARON);
+            auto governor = game->createPlayer("Liat", Role::GOVERNOR);
+            auto spy = game->createPlayer("Noa", Role::SPY);
+            auto merchant = game->createPlayer("Ron", Role::MERCHANT);
+            auto judge = game->createPlayer("Michal", Role::JUDGE);
+            
+            // ריכוז השחקנים במערך
+            std::vector<std::shared_ptr<Player>> players = {
+                general, baron, governor, spy, merchant, judge
+            };
+            
+            // הפעלת הממשק הגרפי עם המשחק והשחקנים שיצרנו
+            CoupGUI gui(game, players);
+            gui.run();
+            
+            
+            
+        }
+        else if (choice == 2)
+        {
+            // משחק אקראי
+            runRandomGame();
+        }
+        else
+        {
+            cout << "Invalid choice!" << endl;
+            return 1;
+        }
 
-        cout << "\n"
-             << string(50, '=') << endl;
-
-        // One detailed random game
-        Game game;
-        auto general = game.createPlayer("Dan", Role::GENERAL);
-        auto merchant = game.createPlayer("Ron", Role::MERCHANT);
-        auto governor = game.createPlayer("Liat", Role::GOVERNOR);
-        auto spy = game.createPlayer("Noa", Role::SPY);
-        auto baron = game.createPlayer("Amit", Role::BARON);
-        auto judge = game.createPlayer("Michal", Role::JUDGE);
-
-        vector<shared_ptr<Player>> &players = game.getPlayers();
-
-        GameSimulator simulator(game, players, true); // With verbose
-
-        simulator.runRandomGame();
-
-        cout << "\n"
-             << string(50, '=') << endl;
-
-        // // Multiple games
-        // char choice;
-        // cout << "Run 10 additional games? (y/n): ";
-        // cin >> choice;
-
-        // if (choice == 'y' || choice == 'Y')
-        // {
-        //     runMultipleRandomGames(10);
-        // }
+        
     }
     catch (const exception &e)
     {
         cerr << "General error: " << e.what() << endl;
         return 1;
     }
-
+    
     return 0;
 }

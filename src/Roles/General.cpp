@@ -2,51 +2,50 @@
 #include "General.hpp"
 #include "../GameExceptions.hpp"
 #include "../Game.hpp"
+#include <iostream>
 namespace coup
 {
 
     void General::block_coup(Player &target)
     {
-        // בדיקה שהשחקן שביצע את ה-coup אכן ביצע coup
-        if (target.get_last_action() != "coup")
-        {
-            throw InvalidOperation("Can only block coup action");
-        }
+        
 
         // בדיקה שיש מספיק מטבעות
         checkCoins(5);
-
-        // בדיקה שקיימת פעולת coup ממתינה
-        string victim_name = target.get_last_target();
-
-        // מוודאים שהשחקן ביצע coup בתור האחרון שלו
-        if (!game_.hasPending("coup", target.name(), victim_name))
-        {
-            throw InvalidOperation("No pending coup action to block");
-        }
 
         // מורידים מטבעות רק לאחר שוידאנו שהפעולה חוקית
         removeCoins(5);
 
         // מחפשים את השחקן ומחזירים אותו למשחק
-        try
+        auto victim = game_.getLastPlayerCouped();
+        if (victim)
         {
-            // מוצאים את השחקן שהופל ומפעילים אותו מחדש
-            auto victim = game_.getPlayerByName(victim_name);
             victim->setActive(true);
+            game_.getArrestedPlayer() = nullptr; // מנקים את השחקן שנעצר
         }
-        catch (const std::exception &e)
+        else
         {
-            throw InvalidOperation("Failed to restore player: " + string(e.what()));
+            throw InvalidOperation("General can't undo this action");
         }
-
-        // ניקוי הפעולה הממתינה
-        game_.clearPendingFor(target.name());
+        
     }
 
     void General::react_to_arrest()
     {
-        addCoins(1);
+        cout << "DEBUG General::react_to_arrest: General " << name() << " reacting to arrest, gaining 1 coin" << endl;
+        // addCoins(1);
+        cout << "DEBUG General::react_to_arrest: General " << name() << " now has " << coins() << " coins" << endl;
     }
 
+    void General::undo(UndoableAction action)
+    {
+        if (action == UndoableAction::COUP)
+        {
+            block_coup(*game_.getCurrentPlayer());
+        }
+        else
+        {
+            throw InvalidOperation("General can't undo this action");
+        }
+    }
 }

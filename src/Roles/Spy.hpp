@@ -6,6 +6,9 @@ namespace coup
 {
     class Spy : public Player
     {
+    private:
+        void block_arrest(Player &target) { target.get_blocked_from_arresting() = true; }
+
     public:
         Spy(Game &game, const string &name, Role role) : Player(game, name, role) {};
         ~Spy() override = default;
@@ -14,7 +17,7 @@ namespace coup
          * חוסם את היכולת של השחקן לבצע מעצר בתור הבא שלו
          * @param target השחקן שיחסם
          */
-        void block_arrest(Player &target) override;
+        
 
         /**
          * מאפשר למרגל לראות את מספר המטבעות של שחקן אחר
@@ -22,6 +25,6 @@ namespace coup
          * @param target השחקן שרוצים לראות את המטבעות שלו
          * @return מספר המטבעות של השחקן
          */
-        int view_coins(Player &target);
+        int view_coins(Player &target) override;
     };
 }
