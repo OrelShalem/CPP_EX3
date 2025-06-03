@@ -15,11 +15,6 @@ A strategic card game with SFML-based graphical interface.
 sudo apt-get install libsfml-dev
 ```
 
-### Fedora:
-```bash
-sudo dnf install SFML-devel
-```
-
 ### macOS (Homebrew):
 ```bash
 brew install sfml
